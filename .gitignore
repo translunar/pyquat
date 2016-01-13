@@ -1,0 +1,8 @@
+*.pyc
+*.so
+*.dylib
+*.py~
+*.md~
+*.egg-info
+Makefile~
+build/

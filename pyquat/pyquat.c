@@ -9,7 +9,9 @@ static PyObject * pyquat_Quat_inplace_conjugate(PyObject* self);
 static PyObject* pyquat_Quat_conjugate(PyObject* self);
 static PyObject * pyquat_Quat_to_angle_vector(PyObject* self);
 static PyObject * pyquat_Quat_to_matrix(PyObject* self);
+static PyObject* pyquat_Quat_to_vector(PyObject* self);
 static PyObject* pyquat_identity(PyObject* self);
+int pyquat_Quat_compare(PyObject* left, PyObject* right);
 
 /*
 static PyObject * pyquat_Quat_new(PyTypeObject* type, PyObject* args) {
@@ -32,6 +34,10 @@ static PyMemberDef pyquat_Quat_members[] = {
   {"vx", T_DOUBLE, offsetof(pyquat_Quat, v),                    0, "vector x component"},
   {"vy", T_DOUBLE, offsetof(pyquat_Quat, v) + sizeof(double),   0, "vector y component"},
   {"vz", T_DOUBLE, offsetof(pyquat_Quat, v) + 2*sizeof(double), 0, "vector z component"},
+  {"w",  T_DOUBLE, offsetof(pyquat_Quat, s),                    0, "scalar component"  },
+  {"x",  T_DOUBLE, offsetof(pyquat_Quat, v),                    0, "vector x component"},
+  {"y",  T_DOUBLE, offsetof(pyquat_Quat, v) + sizeof(double),   0, "vector y component"},
+  {"z",  T_DOUBLE, offsetof(pyquat_Quat, v) + 2*sizeof(double), 0, "vector z component"},
   {NULL}  /* Sentinel */
 };
 
@@ -39,6 +45,7 @@ static PyMemberDef pyquat_Quat_members[] = {
 static PyMethodDef pyquat_Quat_methods[] = {
   {"to_angle_vector", (PyCFunction)pyquat_Quat_to_angle_vector, METH_NOARGS, "convert to a unit axis divided by the angle of rotation in radians"},
   {"to_matrix", (PyCFunction)pyquat_Quat_to_matrix, METH_NOARGS, "convert to a transformation matrix"},
+  {"to_vector", (PyCFunction)pyquat_Quat_to_vector, METH_NOARGS, "convert to a 4x1 vector"},
   {"normalize", (PyCFunction)pyquat_Quat_inplace_normalize, METH_NOARGS, "in-place normalize the quaternion"},
   {"conjugate", (PyCFunction)pyquat_Quat_inplace_conjugate, METH_NOARGS, "in-place conjugate the quaternion"},
   {"conjugated", (PyCFunction)pyquat_Quat_conjugate, METH_NOARGS, "copy and conjugate the quaternion"},
@@ -91,14 +98,14 @@ static PyNumberMethods pyquat_Quat_as_number = {
 static PyTypeObject pyquat_QuatType = {
   PyObject_HEAD_INIT(NULL)   // No semicolon! Don't add one
   0,                         /*ob_size       -- historical artifact, not used any longer */
-  "pyquat.Quat",             /*tp_name*/
+  "pyquat.Quat",            /*tp_name*/
   sizeof(pyquat_Quat),       /*tp_basicsize*/
   0,                         /*tp_itemsize   -- variable-length objects like lists and strings, does not apply */
   0,                         /*tp_dealloc*/
   0,                         /*tp_print*/
   0,                         /*tp_getattr*/
   0,                         /*tp_setattr*/
-  0,                         /*tp_compare*/
+  &pyquat_Quat_compare,      /*tp_compare*/
   &pyquat_Quat_repr,         /*tp_repr*/
   &pyquat_Quat_as_number,    /*tp_as_number*/
   0,                         /*tp_as_sequence*/
@@ -134,7 +141,7 @@ static PyTypeObject pyquat_QuatType = {
 /* Initialize the pyquat module and add pyquat.Quat to it.
  *
  */
-PyMODINIT_FUNC initpyquat(void) {
+PyMODINIT_FUNC init_pyquat(void) {
   PyObject* m;
 
   pyquat_QuatType.tp_new = PyType_GenericNew;
@@ -142,8 +149,10 @@ PyMODINIT_FUNC initpyquat(void) {
     return;
 
   // Define the pyquat module.
-  m = Py_InitModule3("pyquat", pyquat_methods,
+  m = Py_InitModule3("_pyquat", pyquat_methods,
          "Quaternion module with fast unit (right) quaternion math written in C.");
+  if (m == NULL)
+    return;
 
   // Import NumPy to prevent a segfault when we call a function that uses NumPy API.
   import_array();
@@ -315,6 +324,29 @@ static PyObject* pyquat_Quat_to_matrix(PyObject* self) {
 }
 
 
+static PyObject* pyquat_Quat_to_vector(PyObject* self) {
+  npy_intp dims[2] = {4,1};
+
+  pyquat_Quat* q = (pyquat_Quat*)self;
+
+  PyArrayObject* ary  = (PyArrayObject*)PyArray_SimpleNew(2, dims, NPY_DOUBLE);
+  // Check that allocation was successful
+  if (ary == NULL) {
+    PyErr_NoMemory();
+    return NULL;
+  }
+
+  double* vec = (double*)ary->data;
+
+  vec[0] = q->s;
+  vec[1] = q->v[0];
+  vec[2] = q->v[1];
+  vec[3] = q->v[2];
+
+  return PyArray_Return(ary);
+}
+
+
 static PyObject* pyquat_identity(PyObject* self) {
   pyquat_Quat* q =  (pyquat_Quat*) PyObject_New(pyquat_Quat, &pyquat_QuatType);
 
@@ -322,4 +354,34 @@ static PyObject* pyquat_identity(PyObject* self) {
   q->v[0] = q->v[1] = q->v[2] = 0.0;
 
   return (PyObject*)(q);
+}
+
+
+int pyquat_Quat_compare(PyObject* left, PyObject* right) {
+
+  // Expects both to be pyquat.Quat
+  if (!PyObject_IsInstance(right, (PyObject*)&pyquat_QuatType)) {
+    PyErr_SetString(PyExc_IOError, "expected quaternion");
+    return -1;
+  }
+
+  if (left == right) return 0;
+
+  pyquat_Quat* l = (pyquat_Quat*)left;
+  pyquat_Quat* r = (pyquat_Quat*)right;
+
+  // q == -q and q == q
+  if (l->s == r->s && 
+      l->v[0] == r->v[0] && 
+      l->v[1] == r->v[1] &&
+      l->v[2] == r->v[2]) {
+    return 0;
+  } else if (l->s == -r->s && 
+      l->v[0] == -r->v[0] && 
+      l->v[1] == -r->v[1] &&
+      l->v[2] == -r->v[2]) {
+    return 0;
+  } else {
+    return -1;
+  }
 }

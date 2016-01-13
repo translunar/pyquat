@@ -1,15 +1,20 @@
 #!/usr/bin/env python
 
-from distutils.core import setup, Extension
+from setuptools import setup, find_packages
+from setuptools.extension import Extension
+import os
 import numpy
 
+version='0.0.1'
+c_ext = Extension('pyquat/_pyquat', ['pyquat/pyquat.c'], include_dirs=[numpy.get_include()])
+
 setup(name='pyquat',
-      version='0.0.1',
+      version=version,
       description='Python C quaternion type',
       author='John O. Woods, Ph.D.',
       author_email='john.woods@intuitivemachines.com',
       url='http://www.intuitivemachines.com',
-      ext_modules=[
-          Extension('pyquat', ['pyquat.c'], include_dirs=[numpy.get_include()])
-        ]
+      include_package_data=True,
+      packages=find_packages(exclude=['ez_setup', 'examples', 'tests']),
+      ext_modules=[c_ext]
     )
