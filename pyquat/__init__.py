@@ -9,10 +9,10 @@ def cov(ary):
     """
     # If the user supplies an array of N quaternions, convert it to a 4xN array,
     # since we need it in this form to get its covariance.
-    if len(ary.shape) == 1 or (ary.shape[0] == 1 and ary.shape[1] > 1):
-        a = numpy.empty((4, max(ary.shape)), dtype=numpy.dtype(Quat))
+    if ary.dtype == numpy.dtype(Quat):
+        a = numpy.empty((4, max(ary.shape)), dtype=numpy.double)
         q_ary = ary.T
-        for i, q in enumerate(q_ary):
+        for i, q in enumerate(q_ary.flatten()):
             a[:,i] = q.to_vector()[:,0]
         ary = a
             
@@ -40,3 +40,24 @@ def mean_and_cov(ary):
     c = cov(ary)
     m = mean(ary, covariance=c)
     return (m,c)
+
+def angle_vector_cov(ary):
+    """
+    Compute the covariance of an array of quaternions, like cov(), except use the attitude vector
+    representation of each.
+    """
+
+    if ary.dtype == numpy.dtype(Quat):
+        a = numpy.empty((3, max(ary.shape)), dtype=numpy.double)
+        q_ary = ary.T
+        for i, q in enumerate(q_ary.flatten()):
+            a[:,i] = q.to_angle_vector()[:,0]
+        ary = a
+    elif ary.dtype == numpy.double:
+        a = numpy.empty((3, ary.shape[1]), dtype=numpy.double)
+        q_ary = ary.T
+        for i, q in enumerate(q_ary):
+            a[:,i] = Quat(q[0], q[1], q[2], q[3]).to_angle_vector()[:,0]
+        ary = a
+
+    return numpy.cov(ary)

@@ -284,10 +284,9 @@ static PyObject* pyquat_Quat_to_angle_vector(PyObject* self) {
   double* vec    = (double*)ary->data;
   
   if (a > PYQUAT_QUAT_SMALL) {
-    double scale = vec_mag / a;
-    vec[0] = q->v[0] * scale;
-    vec[1] = q->v[1] * scale;
-    vec[2] = q->v[2] * scale;
+    vec[0] = q->v[0] * vec_mag / a;
+    vec[1] = q->v[1] * vec_mag / a;
+    vec[2] = q->v[2] * vec_mag / a;
   } else {
     vec[0] = vec[1] = vec[2] = 0.0;
   }
