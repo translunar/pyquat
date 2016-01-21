@@ -61,3 +61,4 @@ def angle_vector_cov(ary):
         ary = a
 
     return numpy.cov(ary)
+

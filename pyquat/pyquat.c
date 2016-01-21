@@ -1,17 +1,21 @@
 #include "pyquat.h"
 
-
-static int pyquat_Quat_init(pyquat_Quat* self, PyObject* args);
+/*
+ * Local function declarations.
+ */
+static int       pyquat_Quat_init(pyquat_Quat* self, PyObject* args);
 static PyObject* pyquat_Quat_repr(PyObject* self);
-static PyObject * pyquat_Quat_mul(PyObject* self, PyObject* args);
-static PyObject * pyquat_Quat_inplace_normalize(PyObject* self);
-static PyObject * pyquat_Quat_inplace_conjugate(PyObject* self);
+static PyObject* pyquat_Quat_mul(PyObject* self, PyObject* args);
+static PyObject* pyquat_Quat_inplace_normalize(PyObject* self);
+static PyObject* pyquat_Quat_inplace_conjugate(PyObject* self);
 static PyObject* pyquat_Quat_conjugate(PyObject* self);
-static PyObject * pyquat_Quat_to_angle_vector(PyObject* self);
-static PyObject * pyquat_Quat_to_matrix(PyObject* self);
+static PyObject* pyquat_Quat_to_angle_vector(PyObject* self);
+static void      to_matrix(pyquat_Quat* q, double* T);
+static PyObject* pyquat_Quat_to_matrix(PyObject* self);
+static PyObject* pyquat_Quat_to_unit_vector(PyObject* self);
 static PyObject* pyquat_Quat_to_vector(PyObject* self);
 static PyObject* pyquat_identity(PyObject* self);
-int pyquat_Quat_compare(PyObject* left, PyObject* right);
+static int       pyquat_Quat_compare(PyObject* left, PyObject* right);
 
 /*
 static PyObject * pyquat_Quat_new(PyTypeObject* type, PyObject* args) {
@@ -46,6 +50,7 @@ static PyMethodDef pyquat_Quat_methods[] = {
   {"to_angle_vector", (PyCFunction)pyquat_Quat_to_angle_vector, METH_NOARGS, "convert to a unit axis divided by the angle of rotation in radians"},
   {"to_matrix", (PyCFunction)pyquat_Quat_to_matrix, METH_NOARGS, "convert to a transformation matrix"},
   {"to_vector", (PyCFunction)pyquat_Quat_to_vector, METH_NOARGS, "convert to a 4x1 vector"},
+  {"to_unit_vector", (PyCFunction)pyquat_Quat_to_unit_vector, METH_NOARGS, "convert to a 3x1 unit vector representing the attitude on the surface of a unit sphere"},
   {"normalize", (PyCFunction)pyquat_Quat_inplace_normalize, METH_NOARGS, "in-place normalize the quaternion"},
   {"conjugate", (PyCFunction)pyquat_Quat_inplace_conjugate, METH_NOARGS, "in-place conjugate the quaternion"},
   {"conjugated", (PyCFunction)pyquat_Quat_conjugate, METH_NOARGS, "copy and conjugate the quaternion"},
@@ -295,6 +300,21 @@ static PyObject* pyquat_Quat_to_angle_vector(PyObject* self) {
 }
 
 
+/** \brief Helper function for converting a pyquat to a matrix
+ */
+static void to_matrix(pyquat_Quat* q, double* T) {
+  T[0] = 1.0 - 2.0 * (q->v[2] * q->v[2] + q->v[1] * q->v[1]); 
+  T[1] =       2.0 * (q->v[1] * q->v[0] +    q->s * q->v[2]);
+  T[2] =       2.0 * (q->v[2] * q->v[0] -    q->s * q->v[1]);
+  T[3] =       2.0 * (q->v[1] * q->v[0] -    q->s * q->v[2]);
+  T[4] = 1.0 - 2.0 * (q->v[2] * q->v[2] + q->v[0] * q->v[0]);
+  T[5] =       2.0 * (q->v[2] * q->v[1] +    q->s * q->v[0]);
+  T[6] =       2.0 * (q->v[2] * q->v[0] +    q->s * q->v[1]);
+  T[7] =       2.0 * (q->v[2] * q->v[1] -    q->s * q->v[0]);
+  T[8] = 1.0 - 2.0 * (q->v[1] * q->v[1] + q->v[0] * q->v[0]); 
+}
+
+
 static PyObject* pyquat_Quat_to_matrix(PyObject* self) {
   npy_intp dims[2] = {3,3};
   
@@ -308,16 +328,8 @@ static PyObject* pyquat_Quat_to_matrix(PyObject* self) {
   }
 
   double* T = (double*)ary->data;
-  
-  T[0] = 1.0 - 2.0 * (q->v[2] * q->v[2] + q->v[1] * q->v[1]); 
-  T[1] =       2.0 * (q->v[1] * q->v[0] +    q->s * q->v[2]);
-  T[2] =       2.0 * (q->v[2] * q->v[0] -    q->s * q->v[1]);
-  T[3] =       2.0 * (q->v[1] * q->v[0] -    q->s * q->v[2]);
-  T[4] = 1.0 - 2.0 * (q->v[2] * q->v[2] + q->v[0] * q->v[0]);
-  T[5] =       2.0 * (q->v[2] * q->v[1] +    q->s * q->v[0]);
-  T[6] =       2.0 * (q->v[2] * q->v[0] +    q->s * q->v[1]);
-  T[7] =       2.0 * (q->v[2] * q->v[1] -    q->s * q->v[0]);
-  T[8] = 1.0 - 2.0 * (q->v[1] * q->v[1] + q->v[0] * q->v[0]);
+  to_matrix(q, T);
+
 
   return PyArray_Return(ary);
 }
@@ -346,6 +358,29 @@ static PyObject* pyquat_Quat_to_vector(PyObject* self) {
 }
 
 
+static PyObject* pyquat_Quat_to_unit_vector(PyObject* self) {
+  npy_intp dims[2] = {3,1};
+
+  pyquat_Quat* q = (pyquat_Quat*)self;
+
+  PyArrayObject* ary = (PyArrayObject*)PyArray_SimpleNew(2, dims, NPY_DOUBLE);
+  // Check that allocatio nwas successful
+  if (ary == NULL) {
+    PyErr_NoMemory();
+    return NULL;
+  }
+
+  // Let's suppose we're multiplying q.to_matrix() by (1,0,0), or x-hat.
+  // That's equivalent to the first column of q.to_matrix().
+  double* vec = (double*)ary->data;
+  vec[0] = 1.0 - 2.0 * (q->v[2] * q->v[2] + q->v[1] * q->v[1]); 
+  vec[1] =       2.0 * (q->v[1] * q->v[0] +    q->s * q->v[2]);
+  vec[2] =       2.0 * (q->v[2] * q->v[0] -    q->s * q->v[1]);
+  
+  return PyArray_Return(ary);
+}
+
+
 static PyObject* pyquat_identity(PyObject* self) {
   pyquat_Quat* q =  (pyquat_Quat*) PyObject_New(pyquat_Quat, &pyquat_QuatType);
 
@@ -356,7 +391,7 @@ static PyObject* pyquat_identity(PyObject* self) {
 }
 
 
-int pyquat_Quat_compare(PyObject* left, PyObject* right) {
+static int pyquat_Quat_compare(PyObject* left, PyObject* right) {
 
   // Expects both to be pyquat.Quat
   if (!PyObject_IsInstance(right, (PyObject*)&pyquat_QuatType)) {
