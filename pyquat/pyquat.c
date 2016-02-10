@@ -4,6 +4,7 @@
  * Local function declarations.
  */
 static int       pyquat_Quat_init(pyquat_Quat* self, PyObject* args);
+static PyObject* pyquat_Quat_from_angle_axis(PyObject* type, PyObject* args, PyObject* kwargs);
 static PyObject* pyquat_Quat_repr(PyObject* self);
 static PyObject* pyquat_Quat_mul(PyObject* self, PyObject* args);
 static PyObject* pyquat_Quat_inplace_normalize(PyObject* self);
@@ -48,6 +49,7 @@ static PyMemberDef pyquat_Quat_members[] = {
 
 static PyMethodDef pyquat_Quat_methods[] = {
   {"to_angle_vector", (PyCFunction)pyquat_Quat_to_angle_vector, METH_NOARGS, "convert to a unit axis divided by the angle of rotation in radians"},
+  {"from_angle_axis", (PyCFunction)pyquat_Quat_from_angle_axis, METH_CLASS | METH_VARARGS | METH_KEYWORDS, "create a quaternion from an angle and an axis of rotation"},
   {"to_matrix", (PyCFunction)pyquat_Quat_to_matrix, METH_NOARGS, "convert to a transformation matrix"},
   {"to_vector", (PyCFunction)pyquat_Quat_to_vector, METH_NOARGS, "convert to a 4x1 vector"},
   {"to_unit_vector", (PyCFunction)pyquat_Quat_to_unit_vector, METH_NOARGS, "convert to a 3x1 unit vector representing the attitude on the surface of a unit sphere"},
@@ -267,6 +269,46 @@ static PyObject* pyquat_Quat_conjugate(PyObject* self) {
   result->v[2] = -q->v[2];
 
   return (PyObject*)result;
+}
+
+
+
+static PyObject* pyquat_Quat_from_angle_axis(PyObject* type,
+                                             PyObject* args,
+                                             PyObject* kwargs)
+{
+  static char* keywords[] = {"angle", "x", "y", "z", "theta", NULL};
+
+  double z, theta, phi, x, y;
+  if (PyArg_ParseTupleAndKeywords(args, kwargs, "d|dddd:from_angle_axis",
+                                   keywords,
+                                   &phi, &x, &y, &z, &theta))
+  {
+    pyquat_Quat* q = (pyquat_Quat*) PyObject_New(pyquat_Quat, &pyquat_QuatType);
+    if (!q) {
+      PyErr_NoMemory();
+      return NULL;
+    }
+
+    PyObject* theta_str = PyString_FromString(keywords[4]);
+    if (PyDict_Contains(kwargs, theta_str)) { // Overwrite any values for x and y
+      x = sqrt(1.0 - z * z) * cos(theta);
+      y = sqrt(1.0 - z * z) * sin(theta);
+    }
+    Py_DECREF(theta_str); // okay, done with that.
+
+    double half_angle = phi / 2.0;
+
+    // Instantiate the quaternion.
+    q->s    = cos(half_angle);
+    q->v[0] = x * sin(half_angle);
+    q->v[1] = y * sin(half_angle);
+    q->v[2] = z * sin(half_angle);
+    
+    return (PyObject*)q;
+  }
+
+  return NULL;
 }
 
 
