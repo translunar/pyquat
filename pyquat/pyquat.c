@@ -5,6 +5,7 @@
  */
 static int       pyquat_Quat_init(pyquat_Quat* self, PyObject* args);
 static PyObject* pyquat_Quat_from_angle_axis(PyObject* type, PyObject* args, PyObject* kwargs);
+static PyObject* pyquat_Quat_from_matrix(PyObject* type, PyObject* args);
 static PyObject* pyquat_Quat_repr(PyObject* self);
 static PyObject* pyquat_Quat_mul(PyObject* self, PyObject* args);
 static PyObject* pyquat_Quat_inplace_normalize(PyObject* self);
@@ -50,6 +51,7 @@ static PyMemberDef pyquat_Quat_members[] = {
 static PyMethodDef pyquat_Quat_methods[] = {
   {"to_angle_vector", (PyCFunction)pyquat_Quat_to_angle_vector, METH_NOARGS, "convert to a unit axis divided by the angle of rotation in radians"},
   {"from_angle_axis", (PyCFunction)pyquat_Quat_from_angle_axis, METH_CLASS | METH_VARARGS | METH_KEYWORDS, "create a quaternion from an angle and an axis of rotation"},
+  {"from_matrix", (PyCFunction)pyquat_Quat_from_matrix, METH_CLASS | METH_VARARGS, "create a quaternion from a 3x3 directional cosine matrix"},
   {"to_matrix", (PyCFunction)pyquat_Quat_to_matrix, METH_NOARGS, "convert to a transformation matrix"},
   {"to_vector", (PyCFunction)pyquat_Quat_to_vector, METH_NOARGS, "convert to a 4x1 vector"},
   {"to_unit_vector", (PyCFunction)pyquat_Quat_to_unit_vector, METH_NOARGS, "convert to a 3x1 unit vector representing the attitude on the surface of a unit sphere"},
@@ -357,6 +359,53 @@ static void to_matrix(pyquat_Quat* q, double* T) {
 }
 
 
+/** \brief Helper function for converting a matrix to a pyquat
+ */
+static void from_matrix(pyquat_Quat* q, double* T) {
+  int i = 0;
+  double tr = T[0] + T[4] + T[8]; // diagonals
+
+  // If any diagonal element is greater than the existing s, we'll use that for s instead.
+  if (T[0] > tr) {
+    i = 1;
+    q->s = T[0];
+  } else if (T[4] > tr) {
+    i = 2;
+    q->s = T[4];
+  } else if (T[8] > tr) {
+    i = 3;
+    q->s = T[8];
+  } else {
+    i = 0;
+    q->s = tr;
+  }
+
+  tr = sqrt(1.0 + 2.0 * q->s - tr);
+
+  for (int n = 1; n <= 3; ++n) {
+    int k = (n % 3) + 1;
+    int j = 6 - n - k;
+    if (i == 0 || n == i) {
+      q->v[n-1]     = q->s = (T[(k-1)*3 + j-1] - T[(j-1)*3 + k-1]) / tr;
+    } else {
+      q->v[j+k-i-1] = (T[(k-1)*3 + j-1] + T[(j-1)*3 + k-1]) / tr;
+    }
+  }
+
+  if (i == 0) q->s      = tr;
+  else        q->v[i-1] = tr;
+
+  tr = 0.5;
+  if (q->s < 0.0)    tr = -tr;
+
+  q->s    *= tr;
+  q->v[0] *= tr;
+  q->v[1] *= tr;
+  q->v[2] *= tr;
+}
+
+
+
 static PyObject* pyquat_Quat_to_matrix(PyObject* self) {
   npy_intp dims[2] = {3,3};
   
@@ -420,6 +469,25 @@ static PyObject* pyquat_Quat_to_unit_vector(PyObject* self) {
   vec[2] =       2.0 * (q->v[2] * q->v[0] -    q->s * q->v[1]);
   
   return PyArray_Return(ary);
+}
+
+
+static PyObject* pyquat_Quat_from_matrix(PyObject* type,
+					 PyObject* args)
+{
+  PyArrayObject* ary;
+  if (PyArg_ParseTuple(args, "O!|:from_matrix", &PyArray_Type, &ary)) {
+    pyquat_Quat* q = (pyquat_Quat*) PyObject_New(pyquat_Quat, &pyquat_QuatType);
+    if (!q) {
+      PyErr_NoMemory();
+      return NULL;
+    }
+    from_matrix(q, (double*)ary->data);
+        
+    return (PyObject*)q;
+  }
+
+  return NULL;
 }
 
 
