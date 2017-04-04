@@ -3,6 +3,19 @@ from pyquat._pyquat import *
 import numpy
 from scipy import linalg
 
+QUAT_SMALL = 1e-8
+
+def change(q, w, dt):
+    """
+    Change a quaternion q by some angular velocity w over some small timestep dt.
+    """
+    w_norm = linalg.norm(w) * dt
+    if w_norm < QUAT_SMALL:
+        return q
+    e = w / w_norm
+    dq = Quat.from_angle_axis(w_norm, *e)
+    return dq * q
+
 def cov(ary):
     """
     Compute the covariance of an array of quaternions, where each column represents a quaternion.

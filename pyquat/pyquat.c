@@ -14,7 +14,7 @@ static PyObject* pyquat_Quat_conjugate(PyObject* self);
 static PyObject* pyquat_Quat_to_angle_vector(PyObject* self);
 static void      to_matrix(pyquat_Quat* q, double* T);
 static PyObject* pyquat_Quat_to_matrix(PyObject* self);
-static PyObject* pyquat_Quat_to_unit_vector(PyObject* self);
+static PyObject* pyquat_Quat_to_unit_vector(PyObject* self, PyObject* args);
 static PyObject* pyquat_Quat_to_vector(PyObject* self);
 static PyObject* pyquat_identity(PyObject* self);
 static int       pyquat_Quat_compare(PyObject* left, PyObject* right);
@@ -54,7 +54,7 @@ static PyMethodDef pyquat_Quat_methods[] = {
   {"from_matrix", (PyCFunction)pyquat_Quat_from_matrix, METH_CLASS | METH_VARARGS, "create a quaternion from a 3x3 directional cosine matrix"},
   {"to_matrix", (PyCFunction)pyquat_Quat_to_matrix, METH_NOARGS, "convert to a transformation matrix"},
   {"to_vector", (PyCFunction)pyquat_Quat_to_vector, METH_NOARGS, "convert to a 4x1 vector"},
-  {"to_unit_vector", (PyCFunction)pyquat_Quat_to_unit_vector, METH_NOARGS, "convert to a 3x1 unit vector representing the attitude on the surface of a unit sphere"},
+  {"to_unit_vector", (PyCFunction)pyquat_Quat_to_unit_vector, METH_VARARGS, "convert to a 3x1 unit vector representing the attitude on the surface of a unit sphere"},
   {"normalize", (PyCFunction)pyquat_Quat_inplace_normalize, METH_NOARGS, "in-place normalize the quaternion"},
   {"conjugate", (PyCFunction)pyquat_Quat_inplace_conjugate, METH_NOARGS, "in-place conjugate the quaternion"},
   {"conjugated", (PyCFunction)pyquat_Quat_conjugate, METH_NOARGS, "copy and conjugate the quaternion"},
@@ -292,12 +292,14 @@ static PyObject* pyquat_Quat_from_angle_axis(PyObject* type,
       return NULL;
     }
 
-    PyObject* theta_str = PyString_FromString(keywords[4]);
-    if (PyDict_Contains(kwargs, theta_str)) { // Overwrite any values for x and y
-      x = sqrt(1.0 - z * z) * cos(theta);
-      y = sqrt(1.0 - z * z) * sin(theta);
+    if (kwargs) {
+      PyObject* theta_str = PyString_FromString(keywords[4]);
+      if (PyDict_Contains(kwargs, theta_str)) { // Overwrite any values for x and y
+        x = sqrt(1.0 - z * z) * cos(theta);
+        y = sqrt(1.0 - z * z) * sin(theta);
+      }
+      Py_DECREF(theta_str); // okay, done with that.
     }
-    Py_DECREF(theta_str); // okay, done with that.
 
     double half_angle = phi / 2.0;
 
@@ -449,13 +451,23 @@ static PyObject* pyquat_Quat_to_vector(PyObject* self) {
 }
 
 
-static PyObject* pyquat_Quat_to_unit_vector(PyObject* self) {
+static PyObject* pyquat_Quat_to_unit_vector(PyObject* self, PyObject* args) {
   npy_intp dims[2] = {3,1};
 
   pyquat_Quat* q = (pyquat_Quat*)self;
 
+
+  char axis = 'x';
+  if (args) {
+    if (!PyArg_ParseTuple(args, "c", &axis)) {
+      PyErr_SetString(PyExc_IOError, "expected axis designation");
+      return NULL;
+    }
+  }
+
+
   PyArrayObject* ary = (PyArrayObject*)PyArray_SimpleNew(2, dims, NPY_DOUBLE);
-  // Check that allocatio nwas successful
+  // Check that allocation was successful
   if (ary == NULL) {
     PyErr_NoMemory();
     return NULL;
@@ -464,9 +476,22 @@ static PyObject* pyquat_Quat_to_unit_vector(PyObject* self) {
   // Let's suppose we're multiplying q.to_matrix() by (1,0,0), or x-hat.
   // That's equivalent to the first column of q.to_matrix().
   double* vec = (double*)ary->data;
-  vec[0] = 1.0 - 2.0 * (q->v[2] * q->v[2] + q->v[1] * q->v[1]); 
-  vec[1] =       2.0 * (q->v[1] * q->v[0] +    q->s * q->v[2]);
-  vec[2] =       2.0 * (q->v[2] * q->v[0] -    q->s * q->v[1]);
+  if (axis == 'x') {
+    vec[0] = 1.0 - 2.0 * (q->v[2] * q->v[2] + q->v[1] * q->v[1]); 
+    vec[1] =       2.0 * (q->v[1] * q->v[0] +    q->s * q->v[2]);
+    vec[2] =       2.0 * (q->v[2] * q->v[0] -    q->s * q->v[1]);
+  } else if (axis == 'y') {
+    vec[0] =       2.0 * (q->v[1] * q->v[0] -    q->s * q->v[2]);
+    vec[1] = 1.0 - 2.0 * (q->v[2] * q->v[2] + q->v[0] * q->v[0]);
+    vec[2] =       2.0 * (q->v[2] * q->v[1] +    q->s * q->v[0]);
+  } else if (axis == 'z') {
+    vec[0] =       2.0 * (q->v[2] * q->v[0] +    q->s * q->v[1]);
+    vec[1] =       2.0 * (q->v[2] * q->v[1] -    q->s * q->v[0]);
+    vec[2] = 1.0 - 2.0 * (q->v[1] * q->v[1] + q->v[0] * q->v[0]); 
+  } else {
+    PyErr_SetString(PyExc_IOError, "expected axis designation to be in (x, y, or z)");
+    // return anyway
+  }
   
   return PyArray_Return(ary);
 }
