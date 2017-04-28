@@ -366,24 +366,15 @@ static void to_matrix(pyquat_Quat* q, double* T) {
 static void from_matrix(pyquat_Quat* q, double* T) {
   int i = 0;
   double tr = T[0] + T[4] + T[8]; // diagonals
-
-  // If any diagonal element is greater than the existing s, we'll use that for s instead.
-  if (T[0] > tr) {
-    i = 1;
-    q->s = T[0];
-  } else if (T[4] > tr) {
-    i = 2;
-    q->s = T[4];
-  } else if (T[8] > tr) {
-    i = 3;
-    q->s = T[8];
-  } else {
-    i = 0;
-    q->s = tr;
+  q->s = tr;
+  for (int n = 0; n < 3; ++n) {
+    if (T[n*3+n] > q->s) {
+      i = n + 1;
+      q->s = T[n*3+n];
+    }
   }
 
   tr = sqrt(1.0 + 2.0 * q->s - tr);
-
   for (int n = 1; n <= 3; ++n) {
     int k = (n % 3) + 1;
     int j = 6 - n - k;
@@ -477,17 +468,17 @@ static PyObject* pyquat_Quat_to_unit_vector(PyObject* self, PyObject* args) {
   // That's equivalent to the first column of q.to_matrix().
   double* vec = (double*)ary->data;
   if (axis == 'x') {
-    vec[0] = 1.0 - 2.0 * (q->v[2] * q->v[2] + q->v[1] * q->v[1]); 
-    vec[1] =       2.0 * (q->v[1] * q->v[0] +    q->s * q->v[2]);
-    vec[2] =       2.0 * (q->v[2] * q->v[0] -    q->s * q->v[1]);
+    vec[0] = 1.0 - 2.0 * (q->v[2] * q->v[2] + q->v[1] * q->v[1]);
+    vec[1] =       2.0 * (q->v[1] * q->v[0] -    q->s * q->v[2]);
+    vec[2] =       2.0 * (q->v[2] * q->v[0] +    q->s * q->v[1]);
   } else if (axis == 'y') {
-    vec[0] =       2.0 * (q->v[1] * q->v[0] -    q->s * q->v[2]);
+    vec[0] =       2.0 * (q->v[1] * q->v[0] +    q->s * q->v[2]);
     vec[1] = 1.0 - 2.0 * (q->v[2] * q->v[2] + q->v[0] * q->v[0]);
-    vec[2] =       2.0 * (q->v[2] * q->v[1] +    q->s * q->v[0]);
+    vec[2] =       2.0 * (q->v[2] * q->v[1] -    q->s * q->v[0]);
   } else if (axis == 'z') {
-    vec[0] =       2.0 * (q->v[2] * q->v[0] +    q->s * q->v[1]);
-    vec[1] =       2.0 * (q->v[2] * q->v[1] -    q->s * q->v[0]);
-    vec[2] = 1.0 - 2.0 * (q->v[1] * q->v[1] + q->v[0] * q->v[0]); 
+    vec[0] =       2.0 * (q->v[2] * q->v[0] -    q->s * q->v[1]);
+    vec[1] =       2.0 * (q->v[2] * q->v[1] +    q->s * q->v[0]);
+    vec[2] = 1.0 - 2.0 * (q->v[1] * q->v[1] + q->v[0] * q->v[0]);
   } else {
     PyErr_SetString(PyExc_IOError, "expected axis designation to be in (x, y, or z)");
     // return anyway
