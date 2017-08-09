@@ -26,3 +26,6 @@ class QuaternionTest(unittest.TestCase):
 
     def assert_equal(self, q1, q2, **kwargs):
         self.assertEqual(q1, q2, **kwargs)
+
+    def assert_not_equal(self, q1, q2, **kwargs):
+        self.assertNotEqual(q1, q2, **kwargs)

@@ -88,5 +88,46 @@ class TestPyquat(QuaternionTest):
         tBC = qBC.to_matrix()
         tAC = np.dot(tBC, tAB)
         self.assert_almost_equal_as_matrix(qAC, tAC)
+
+    def test_normalize(self):
+        q0 = Quat(4.0, 3.0, 2.0, 1.0)
+        q1 = Quat(4.0, 3.0, 2.0, 1.0)
+        q2 = q1.normalized()
+
+        # Test that normalized() changed q2 and not q1
+        self.assert_not_equal(q1, q2)
+        self.assert_equal(q0, q1)
+
+        # Now test that normalize() changes q1
+        q1.normalize()
+        self.assert_not_equal(q0, q1)
+        self.assert_equal(q1, q2)
+
+        # Now test that normalize does what we expect it to do.
+        v = np.array([[4.0, 3.0, 2.0, 1.0]]).T
+        v /= linalg.norm(v)
+        q3 = Quat(v[0], v[1], v[2], v[3])
+        self.assert_equal(q1, q3)
+
+        # Now test that normalize handles invalid quaternions.
+        q3 = Quat(0.0, 0.0, 0.0, 0.0)
+        self.assert_equal(q3.normalized(), pq.identity()) # out-of-place test
+        self.assert_equal(q3, Quat(0.0, 0.0, 0.0, 0.0))
+        q3.normalize()
+        self.assert_equal(q3, pq.identity()) # in-place test
+    
+
+    def test_conjugate(self):
+        q0 = Quat(4.0, -3.0, -2.0, -1.0)
+        q1 = Quat(4.0,  3.0,  2.0,  1.0)
+
+        # Test out-of-place
+        self.assert_equal(q0, q1.conjugated())
+        self.assert_not_equal(q0, q1)
+
+        # Test in-place
+        q1.conjugate()
+        self.assert_equal(q0, q1)
+        
 if __name__ == '__main__':
     unittest.main()

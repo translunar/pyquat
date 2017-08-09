@@ -11,6 +11,7 @@ static PyObject* pyquat_Quat_repr(PyObject* self);
 static PyObject* pyquat_Quat_mul(PyObject* self, PyObject* args);
 static PyObject* pyquat_Quat_inplace_normalize(PyObject* self);
 static PyObject* pyquat_Quat_inplace_conjugate(PyObject* self);
+static PyObject* pyquat_Quat_normalize(PyObject* self);
 static PyObject* pyquat_Quat_conjugate(PyObject* self);
 static PyObject* pyquat_Quat_to_rotation_vector(PyObject* self);
 static void      to_matrix(pyquat_Quat* q, double* T);
@@ -61,6 +62,7 @@ static PyMethodDef pyquat_Quat_methods[] = {
   {"to_unit_vector", (PyCFunction)pyquat_Quat_to_unit_vector, METH_VARARGS, "convert to a 3x1 unit vector representing the attitude on the surface of a unit sphere"},
   {"normalize", (PyCFunction)pyquat_Quat_inplace_normalize, METH_NOARGS, "in-place normalize the quaternion"},
   {"conjugate", (PyCFunction)pyquat_Quat_inplace_conjugate, METH_NOARGS, "in-place conjugate the quaternion"},
+  {"normalized", (PyCFunction)pyquat_Quat_normalize, METH_NOARGS, "normalize the quaternion"},
   {"conjugated", (PyCFunction)pyquat_Quat_conjugate, METH_NOARGS, "copy and conjugate the quaternion"},
   {NULL, NULL, 0, NULL}  /* Sentinel */
 };
@@ -232,17 +234,44 @@ static PyObject* pyquat_Quat_inplace_normalize(PyObject* self) {
   pyquat_Quat* q = (pyquat_Quat*)(self);
 
   double q_mag = sqrt(q->s * q->s + q->v[0] * q->v[0] + q->v[1] * q->v[1] + q->v[2] * q->v[2]);
-  if (q_mag > PYQUAT_SMALL) q_mag = 1.0 / q_mag;
-  else                           q_mag = 0.0;
-
-  q->s    *= q_mag;
-  q->v[0] *= q_mag;
-  q->v[1] *= q_mag;
-  q->v[2] *= q_mag;
+  if (q_mag > PYQUAT_SMALL) {
+    q->s    /= q_mag;
+    q->v[0] /= q_mag;
+    q->v[1] /= q_mag;
+    q->v[2] /= q_mag;
+  } else { // cannot normalize, so just use identity
+    q->s = 1.0;
+    q->v[0] = q->v[1] = q->v[2] = 0.0;
+  }
 
   Py_INCREF(self);
 
   return self;
+}
+
+
+static PyObject* pyquat_Quat_normalize(PyObject* self) {
+  pyquat_Quat* q      = (pyquat_Quat*)(self);
+
+  // allocate a quaternion for the result
+  pyquat_Quat* result = (pyquat_Quat*) PyObject_New(pyquat_Quat, &pyquat_QuatType);
+  if (!result) {
+    PyErr_NoMemory();
+    return NULL;
+  }
+
+  double q_mag = sqrt(q->s * q->s + q->v[0] * q->v[0] + q->v[1] * q->v[1] + q->v[2] * q->v[2]);
+  if (q_mag > PYQUAT_SMALL) {
+    result->s     = q->s / q_mag;
+    result->v[0]  = q->v[0] / q_mag;
+    result->v[1]  = q->v[1] / q_mag;
+    result->v[2]  = q->v[2] / q_mag;   
+  } else { // can't normalize, so just use identity
+    result->s     = 1.0;
+    result->v[0]  = result->v[1] = result->v[2] = 0.0;
+  }
+
+  return (PyObject*)result;
 }
 
 
