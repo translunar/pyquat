@@ -349,16 +349,14 @@ static PyObject* pyquat_Quat_to_angle_vector(PyObject* self) {
 /** \brief Helper function for converting a pyquat to a matrix
  */
 static void to_matrix(pyquat_Quat* q, double* T) {
-  T[0] = 1.0 - 2.0 * (q->v[2] * q->v[2] + q->v[1] * q->v[1]);
-  T[1] =       2.0 * (q->v[1] * q->v[0] -    q->s * q->v[2]);
-  T[2] =       2.0 * (q->v[2] * q->v[0] +    q->s * q->v[1]);
-  
-  T[3] =       2.0 * (q->v[1] * q->v[0] +    q->s * q->v[2]);
+  T[0] = 1.0 - 2.0 * (q->v[2] * q->v[2] + q->v[1] * q->v[1]); 
+  T[1] =       2.0 * (q->v[1] * q->v[0] +    q->s * q->v[2]);
+  T[2] =       2.0 * (q->v[2] * q->v[0] -    q->s * q->v[1]);
+  T[3] =       2.0 * (q->v[1] * q->v[0] -    q->s * q->v[2]);
   T[4] = 1.0 - 2.0 * (q->v[2] * q->v[2] + q->v[0] * q->v[0]);
-  T[5] =       2.0 * (q->v[2] * q->v[1] -    q->s * q->v[0]);
-  
-  T[6] =       2.0 * (q->v[2] * q->v[0] -    q->s * q->v[1]);
-  T[7] =       2.0 * (q->v[2] * q->v[1] +    q->s * q->v[0]);
+  T[5] =       2.0 * (q->v[2] * q->v[1] +    q->s * q->v[0]);
+  T[6] =       2.0 * (q->v[2] * q->v[0] +    q->s * q->v[1]);
+  T[7] =       2.0 * (q->v[2] * q->v[1] -    q->s * q->v[0]);
   T[8] = 1.0 - 2.0 * (q->v[1] * q->v[1] + q->v[0] * q->v[0]); 
 }
 

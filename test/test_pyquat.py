@@ -9,7 +9,7 @@ class TestPyquat(QuaternionTest):
     def test_mean(self):
         self.assertEqual(
             pq.mean(np.array([[1.0, 0.0, 0.0, 0.0],
-                                  [1.0, 0.0, 0.0, 0.0]]).T), 
+                              [1.0, 0.0, 0.0, 0.0]]).T), 
             Quat(1.0, 0.0, 0.0, 0.0))
         
         self.assert_almost_equal_components(
@@ -31,6 +31,11 @@ class TestPyquat(QuaternionTest):
         self.assert_equal_as_quat(
             pq.identity(),
             np.identity(3))
+
+    def test_symmetric_conversion(self):
+        self.assert_almost_equal_as_quat(
+            Quat(0.70710678118654757, 0.70710678118654757, 0.0, 0.0),
+            Quat(0.70710678118654757, 0.70710678118654757, 0.0, 0.0).to_matrix())
 
 if __name__ == '__main__':
     unittest.main()
