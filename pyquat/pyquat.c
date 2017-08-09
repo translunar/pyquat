@@ -4,6 +4,7 @@
  * Local function declarations.
  */
 static int       pyquat_Quat_init(pyquat_Quat* self, PyObject* args);
+static PyObject* pyquat_Quat_from_rotation_vector(PyObject* self, PyObject* args);
 static PyObject* pyquat_Quat_from_angle_axis(PyObject* type, PyObject* args, PyObject* kwargs);
 static PyObject* pyquat_Quat_from_matrix(PyObject* type, PyObject* args);
 static PyObject* pyquat_Quat_repr(PyObject* self);
@@ -11,13 +12,14 @@ static PyObject* pyquat_Quat_mul(PyObject* self, PyObject* args);
 static PyObject* pyquat_Quat_inplace_normalize(PyObject* self);
 static PyObject* pyquat_Quat_inplace_conjugate(PyObject* self);
 static PyObject* pyquat_Quat_conjugate(PyObject* self);
-static PyObject* pyquat_Quat_to_angle_vector(PyObject* self);
+static PyObject* pyquat_Quat_to_rotation_vector(PyObject* self);
 static void      to_matrix(pyquat_Quat* q, double* T);
 static PyObject* pyquat_Quat_to_matrix(PyObject* self);
 static PyObject* pyquat_Quat_to_unit_vector(PyObject* self, PyObject* args);
 static PyObject* pyquat_Quat_to_vector(PyObject* self);
 static PyObject* pyquat_identity(PyObject* self);
 static int       pyquat_Quat_compare(PyObject* left, PyObject* right);
+static PyObject* pyquat_rotation_vector_to_matrix(PyObject* self, PyObject* args);
 
 /*
 static PyObject * pyquat_Quat_new(PyTypeObject* type, PyObject* args) {
@@ -29,6 +31,7 @@ static PyObject * pyquat_Quat_new(PyTypeObject* type, PyObject* args) {
 
 static PyMethodDef pyquat_methods[] = {
   {"identity", (PyCFunction)pyquat_identity, METH_NOARGS, "create an identity quaternion (1.0, 0.0, 0.0, 0.0)"},
+  {"rotation_vector_to_matrix", (PyCFunction)pyquat_rotation_vector_to_matrix, METH_VARARGS, "convert a rotation vector direction to a directed-cosine matrix, skipping the quaternion"},
   {NULL, NULL, 0, NULL}  /* Sentinel */
 };
 
@@ -49,8 +52,9 @@ static PyMemberDef pyquat_Quat_members[] = {
 
 
 static PyMethodDef pyquat_Quat_methods[] = {
-  {"to_angle_vector", (PyCFunction)pyquat_Quat_to_angle_vector, METH_NOARGS, "convert to a unit axis divided by the angle of rotation in radians"},
+  {"to_rotation_vector", (PyCFunction)pyquat_Quat_to_rotation_vector, METH_NOARGS, "convert to a unit axis divided by the angle of rotation in radians"},
   {"from_angle_axis", (PyCFunction)pyquat_Quat_from_angle_axis, METH_CLASS | METH_VARARGS | METH_KEYWORDS, "create a quaternion from an angle and an axis of rotation"},
+  {"from_rotation_vector", (PyCFunction)pyquat_Quat_from_rotation_vector, METH_CLASS | METH_VARARGS, "create a quaternion from a non-unit axis, treating its magnitude as the angle about the normalized axis"},  
   {"from_matrix", (PyCFunction)pyquat_Quat_from_matrix, METH_CLASS | METH_VARARGS, "create a quaternion from a 3x3 directional cosine matrix"},
   {"to_matrix", (PyCFunction)pyquat_Quat_to_matrix, METH_NOARGS, "convert to a transformation matrix"},
   {"to_vector", (PyCFunction)pyquat_Quat_to_vector, METH_NOARGS, "convert to a 4x1 vector"},
@@ -228,7 +232,7 @@ static PyObject* pyquat_Quat_inplace_normalize(PyObject* self) {
   pyquat_Quat* q = (pyquat_Quat*)(self);
 
   double q_mag = sqrt(q->s * q->s + q->v[0] * q->v[0] + q->v[1] * q->v[1] + q->v[2] * q->v[2]);
-  if (q_mag > PYQUAT_QUAT_SMALL) q_mag = 1.0 / q_mag;
+  if (q_mag > PYQUAT_SMALL) q_mag = 1.0 / q_mag;
   else                           q_mag = 0.0;
 
   q->s    *= q_mag;
@@ -316,8 +320,43 @@ static PyObject* pyquat_Quat_from_angle_axis(PyObject* type,
 }
 
 
+/** \brief Helper function for converting a rotation vector to a pyquat
+ */
+static void from_rotation_vector(pyquat_Quat* q, double* phi) {
+  double mag        = sqrt(phi[0]*phi[0] + phi[1]*phi[1] + phi[2]*phi[2]);
+  double half_angle = mag / 2.0;
+  if (mag < PYQUAT_SMALL) { // very small angle: use identity
+    q->s = 1.0;
+    q->v[0] = q->v[1] = q->v[2] = 0.0;
+  } else {
+    q->s    = cos(half_angle);
+    q->v[0] = (phi[0] / mag) * sin(half_angle);
+    q->v[1] = (phi[1] / mag) * sin(half_angle);
+    q->v[2] = (phi[2] / mag) * sin(half_angle);
+  }
+}
 
-static PyObject* pyquat_Quat_to_angle_vector(PyObject* self) {
+
+static PyObject* pyquat_Quat_from_rotation_vector(PyObject* type,
+                                                  PyObject* args)
+{
+  PyArrayObject* ary;
+  if (PyArg_ParseTuple(args, "O!|:from_rotation_vector", &PyArray_Type, &ary)) {
+    pyquat_Quat* q = (pyquat_Quat*) PyObject_New(pyquat_Quat, &pyquat_QuatType);
+    if (!q) {
+      PyErr_NoMemory();
+      return NULL;
+    }
+    from_rotation_vector(q, (double*)ary->data);
+        
+    return (PyObject*)q;
+  }
+
+  return NULL;
+}
+
+
+static PyObject* pyquat_Quat_to_rotation_vector(PyObject* self) {
   npy_intp dims[2] = {3,1};
   
   pyquat_Quat* q = (pyquat_Quat*)(self);
@@ -334,7 +373,7 @@ static PyObject* pyquat_Quat_to_angle_vector(PyObject* self) {
 
   double* vec    = (double*)ary->data;
   
-  if (a > PYQUAT_QUAT_SMALL) {
+  if (a > PYQUAT_SMALL) {
     vec[0] = q->v[0] * vec_mag / a;
     vec[1] = q->v[1] * vec_mag / a;
     vec[2] = q->v[2] * vec_mag / a;
@@ -506,6 +545,50 @@ static PyObject* pyquat_Quat_from_matrix(PyObject* type,
   return NULL;
 }
 
+
+static PyObject* pyquat_rotation_vector_to_matrix(PyObject* self, PyObject* args) {
+  PyArrayObject* ary;
+  if (PyArg_ParseTuple(args, "O!|:rotation_vector_to_matrix", &PyArray_Type, &ary)) {
+
+    // First allocate a place to put it, and check that allocation was successful.
+    npy_intp dims[2] = {3,3};
+    PyArrayObject* mat = (PyArrayObject*)PyArray_SimpleNew(2, dims, NPY_DOUBLE);
+    if (!mat) {
+      PyErr_NoMemory();
+      return NULL;
+    }
+    double* T = (double*)mat->data;
+    
+    
+    double* v    = (double*)ary->data;
+    double v_mag = sqrt(v[0]*v[0] + v[1]*v[1] + v[2]*v[2]);
+    double c     = cos(v_mag);
+    double s     = sin(v_mag);
+    double vu[3];
+    if (v_mag < PYQUAT_SMALL) { // just set to identity if angle is infinitesmally small
+      T[0] = T[4] = T[8] = 1.0;
+      T[1] = T[2] = T[3] = T[5] = T[6] = T[7] = 0.0;
+    } else {
+      vu[0] = v[0] / v_mag;
+      vu[1] = v[1] / v_mag;
+      vu[2] = v[2] / v_mag;
+
+      T[0]  = c + vu[0]*vu[0] * (1.0 - c);
+      T[1]  = vu[0]*vu[1] * (1.0 - c) + vu[2] * s;
+      T[2]  = vu[0]*vu[2] * (1.0 - c) - vu[1] * s;
+      T[3]  = vu[0]*vu[1] * (1.0 - c) - vu[2] * s;
+      T[4]  = c + vu[1]*vu[1] * (1.0 - c);
+      T[5]  = vu[1]*vu[2] * (1.0 - c) + vu[0] * s;
+      T[6]  = vu[0]*vu[2] * (1.0 - c) + vu[1] * s;
+      T[7]  = vu[1]*vu[2] * (1.0 - c) - vu[0] * s;
+      T[8]  = c + vu[2]*vu[2] * (1.0 - c);
+    }
+
+    return PyArray_Return(mat);
+  }
+
+  return NULL;
+}
 
 static PyObject* pyquat_identity(PyObject* self) {
   pyquat_Quat* q =  (pyquat_Quat*) PyObject_New(pyquat_Quat, &pyquat_QuatType);

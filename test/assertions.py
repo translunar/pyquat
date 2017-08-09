@@ -23,3 +23,6 @@ class QuaternionTest(unittest.TestCase):
 
     def assert_almost_equal_as_quat(self, q, m, **kwargs):
         self.assert_almost_equal_components(q, Quat.from_matrix(m), **kwargs)
+
+    def assert_equal(self, q1, q2, **kwargs):
+        self.assertEqual(q1, q2, **kwargs)

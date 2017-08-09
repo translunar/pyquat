@@ -1,8 +1,10 @@
 import unittest
 import numpy as np
+from numpy import linalg
 import pyquat as pq
 from pyquat import Quat
 from assertions import QuaternionTest
+import math
 
 class TestPyquat(QuaternionTest):
 
@@ -32,10 +34,59 @@ class TestPyquat(QuaternionTest):
             pq.identity(),
             np.identity(3))
 
-    def test_symmetric_conversion(self):
+    def test_symmetric_matrix_conversion(self):
+        q = Quat(0.4, -0.3, 0.2, -0.1)
+        q.normalize()
         self.assert_almost_equal_as_quat(
-            Quat(0.70710678118654757, 0.70710678118654757, 0.0, 0.0),
-            Quat(0.70710678118654757, 0.70710678118654757, 0.0, 0.0).to_matrix())
+            q,
+            q.to_matrix())
+        self.assert_almost_equal_as_quat(
+            q.conjugate(),
+            q.to_matrix().T)
 
+    def test_symmetric_rotation_vector_conversion(self):
+        q = Quat(0.4, -0.3, 0.2, -0.1)
+        q.normalize()
+        self.assert_almost_equal_components(q, Quat.from_rotation_vector(q.to_rotation_vector()))
+        
+
+    def test_symmetric_angle_axis_conversion(self):
+        q = Quat(0.4, -0.3, 0.2, -0.1)
+        q.normalize()
+        phi = q.to_rotation_vector()
+        angle = linalg.norm(phi)
+        phi_hat = phi / angle
+        self.assert_almost_equal_components(q, Quat.from_angle_axis(angle, phi_hat[0], phi_hat[1], phi_hat[2]))
+
+    def test_symmetric_conjugate(self):
+        q = Quat(0.4, -0.3, 0.2, -0.1)
+        qT = q.conjugated()
+        self.assert_equal(q, qT.conjugated())
+
+    def test_small_rotation_vector(self):
+        v = np.zeros((3,1)) * 3.0 / math.sqrt(3.0)
+        q = Quat.from_rotation_vector(v)
+        self.assert_equal(q, pq.identity())
+        T = pq.rotation_vector_to_matrix(v)
+        np.testing.assert_array_equal(T, q.to_matrix())
+
+    def test_large_rotation_vector(self):
+        v = np.array([[3.0, 2.0, 1.0]]).T
+        T1 = Quat.from_rotation_vector(v).to_matrix()
+        T2 = pq.rotation_vector_to_matrix(v)
+        np.testing.assert_array_almost_equal(T1, T2)
+
+    def test_multiplication(self):
+        qAB = Quat(0.4, -0.3, 0.2, -0.1)
+        qAB.normalize()
+        qBC = Quat(0.2, 0.3, -0.4, 0.5)
+        qBC.normalize()
+        qAC = qBC * qAB
+        qAC.normalize()
+
+        tAB = qAB.to_matrix()
+        tBC = qBC.to_matrix()
+        tAC = np.dot(tBC, tAB)
+        self.assert_almost_equal_as_matrix(qAC, tAC)
 if __name__ == '__main__':
     unittest.main()

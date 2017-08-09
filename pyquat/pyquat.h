@@ -10,7 +10,7 @@
 #define PyMODINIT_FUNC void
 #endif
 
-#define PYQUAT_QUAT_SMALL 1.0e-12
+#define PYQUAT_SMALL 1.0e-12
 
 typedef struct {
   PyObject_HEAD // semicolon intentionally left out, don't add
