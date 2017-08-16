@@ -82,3 +82,19 @@ def from_rotation_vector(v):
     Shortcut for Quat.from_rotation_vector(v).
     """
     return Quat.from_rotation_vector(v)
+
+def from_matrix(m):
+    """
+    Shortcut for Quat.from_matrix(v).
+    """
+    return Quat.from_matrix(m)
+
+def skew(v):
+    """
+    Generate a skew-symmetric matrix from a vector.
+
+    Code borrowed from: https://pythonpath.wordpress.com/2012/09/04/skew-with-numpy-operations/
+    """
+    #if len(v) == 4: v = v[:3]/v[3]
+    skv = numpy.roll(numpy.roll(numpy.diag(v.flatten()), 1, 1), -1, 0)
+    return skv - skv.T

@@ -129,6 +129,13 @@ class TestPyquat(QuaternionTest):
         q1.conjugate()
         self.assert_equal(q0, q1)
 
+    def test_skew(self):
+        v = np.array([[1.0, 2.0, 3.0]]).T
+        vx = pq.skew(v)
+        np.testing.assert_array_equal(vx, np.array([[ 0.0, -3.0,  2.0],
+                                                    [ 3.0,  0.0, -1.0],
+                                                    [-2.0,  1.0,  0.0]]))
+
     def test_change(self):
         dt = 0.01
         q0 = Quat(1.0, 0.0, 0.0, 0.0)
@@ -138,6 +145,13 @@ class TestPyquat(QuaternionTest):
         phi2 = w0 * dt
         q2   = pq.from_rotation_vector(phi2)
         self.assert_equal(q1, q2)
+
+        T0   = q0.to_matrix()
+        w0x  = pq.skew(w0)
+        Tdot = np.dot(T0, w0x)
+        T1   = np.identity(3) - Tdot * dt # dT = (I - [phi x])
+        q3   = pq.from_matrix(T1)
+        self.assert_almost_equal_as_quat(q1, T1)
         
 if __name__ == '__main__':
     unittest.main()

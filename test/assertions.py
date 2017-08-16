@@ -15,14 +15,14 @@ class QuaternionTest(unittest.TestCase):
         np.testing.assert_array_equal(q.to_matrix(), m, **kwargs)
 
     def assert_equal_as_quat(self, q, m, **kwargs):
-        self.assertEqual(q, Quat.from_matrix(m), **kwargs)
+        self.assertEqual(q, Quat.from_matrix(m).normalized(), **kwargs)
         
     def assert_almost_equal_as_matrix(self, q, m, **kwargs):
         """ convert a quaternion to a matrix and compare it to m """
         np.testing.assert_array_almost_equal(q.to_matrix(), m, **kwargs)
 
     def assert_almost_equal_as_quat(self, q, m, **kwargs):
-        self.assert_almost_equal_components(q, Quat.from_matrix(m), **kwargs)
+        self.assert_almost_equal_components(q, Quat.from_matrix(m).normalized(), **kwargs)
 
     def assert_equal(self, q1, q2, **kwargs):
         self.assertEqual(q1, q2, **kwargs)
