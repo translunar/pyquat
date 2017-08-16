@@ -9,11 +9,13 @@ def change(q, w, dt):
     """
     Change a quaternion q by some angular velocity w over some small timestep dt.
     """
-    w_norm = linalg.norm(w) * dt
+
+    # Find magnitude of angular velocity (in r/s)
+    w_norm = linalg.norm(w)
     if w_norm < QUAT_SMALL:
         return q
     e = w / w_norm
-    dq = Quat.from_angle_axis(w_norm, *e)
+    dq = Quat.from_angle_axis(w_norm * dt, *e)
     return dq * q
 
 def cov(ary):
@@ -75,3 +77,8 @@ def angle_vector_cov(ary):
 
     return numpy.cov(ary)
 
+def from_rotation_vector(v):
+    """
+    Shortcut for Quat.from_rotation_vector(v).
+    """
+    return Quat.from_rotation_vector(v)

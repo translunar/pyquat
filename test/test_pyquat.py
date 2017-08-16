@@ -128,6 +128,16 @@ class TestPyquat(QuaternionTest):
         # Test in-place
         q1.conjugate()
         self.assert_equal(q0, q1)
+
+    def test_change(self):
+        dt = 0.01
+        q0 = Quat(1.0, 0.0, 0.0, 0.0)
+        w0 = np.array([[0.0, 0.0, 1.0]]).T
+        q1 = pq.change(q0, w0, dt)
+        phi1 = q1.to_rotation_vector()
+        phi2 = w0 * dt
+        q2   = pq.from_rotation_vector(phi2)
+        self.assert_equal(q1, q2)
         
 if __name__ == '__main__':
     unittest.main()
