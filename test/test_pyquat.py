@@ -1,10 +1,11 @@
 import unittest
 import numpy as np
-from numpy import linalg
+from scipy import linalg
 import pyquat as pq
 from pyquat import Quat
 from assertions import QuaternionTest
 import math
+
 
 class TestPyquat(QuaternionTest):
 
@@ -136,22 +137,74 @@ class TestPyquat(QuaternionTest):
                                                     [ 3.0,  0.0, -1.0],
                                                     [-2.0,  1.0,  0.0]]))
 
-    def test_change(self):
+    def test_propagate(self):
         dt = 0.01
         q0 = Quat(1.0, 0.0, 0.0, 0.0)
         w0 = np.array([[0.0, 0.0, 1.0]]).T
-        q1 = pq.change(q0, w0, dt)
+        q1 = pq.propagate(q0, w0, dt)
         phi1 = q1.to_rotation_vector()
         phi2 = w0 * dt
         q2   = pq.from_rotation_vector(phi2)
         self.assert_equal(q1, q2)
 
+        # Test quaternion propagation
+        q3 = pq.propagate(q0, w0, dt)
+        self.assert_equal(q1, q3)
+
+        # Compare the directed cosine matrix result
         T0   = q0.to_matrix()
         w0x  = pq.skew(w0)
         Tdot = np.dot(T0, w0x)
         T1   = np.identity(3) - Tdot * dt # dT = (I - [phi x])
-        q3   = pq.from_matrix(T1)
         self.assert_almost_equal_as_quat(q1, T1)
+
+    def test_rk4_integration(self):
+        dt = 0.05
+        q = Quat(1.0, 2.0, 3.0, 4.0).normalized()
+        w = np.array([[0.03, 0.02, 0.01]]).T
+        J = np.diag([200.0, 200.0, 100.0])
+        J_inv = linalg.inv(J)
+
+        # Test propagation using RK4
+        q1, w1 = pq.step_rk4(q,  w,  dt,     J = J, J_inv = J_inv)
+        qa, wa = pq.step_rk4(q,  w,  dt*0.5, J = J, J_inv = J_inv)
+        q2, w2 = pq.step_rk4(qa, wa, dt*0.5, J = J, J_inv = J_inv)
+
+    def test_expm(self):
+        B1    = 13/51.0
+        dt    = 0.05
+        w     = np.array([[0.03, 0.02, 0.01]]).T
+        J     = np.diag([200.0, 200.0, 100.0])
+        J_inv = linalg.inv(J)
+        wk1   = pq.wdot(w, J)
+        qk1   = pq.state_transition_matrix(w)
+        expm1 = pq.expm(w, dt * B1)
+        expm2 = linalg.expm(qk1 * (B1 * dt))
+        np.testing.assert_array_almost_equal(expm1, expm2)
+        
+    def test_cg_integration(self):
+        """
+        CG3 and CG4 integration
+        """
+        dt = 0.1
+        q = Quat(1.0, 2.0, 3.0, 4.0).normalized()
+        w = np.array([[0.03, 0.02, 0.01]]).T
+        J = np.diag([200.0, 200.0, 100.0])
+
+        # Test propagation using RK4
+        q1, w1 = pq.step_rk4(q, w, dt, J = J)
+
+        # Test propagation using CG3
+        q2, w2 = pq.step_cg3(q, w, dt, J = J)
+
+        # Test propagation using CG4
+        q3, w3 = pq.step_cg4(q, w, dt, J = J)
+
+        self.assert_almost_equal(q2, q3)
+        self.assert_almost_equal(q1, q2)
+        np.testing.assert_array_almost_equal(w2, w3)
+        np.testing.assert_array_almost_equal(w1, w2)
+        
         
 if __name__ == '__main__':
     unittest.main()

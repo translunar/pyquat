@@ -29,3 +29,6 @@ class QuaternionTest(unittest.TestCase):
 
     def assert_not_equal(self, q1, q2, **kwargs):
         self.assertNotEqual(q1, q2, **kwargs)
+
+    def assert_almost_equal(self, q1, q2, **kwargs):
+        np.testing.assert_array_almost_equal(q1.to_vector(), q2.to_vector(), **kwargs)
