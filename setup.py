@@ -5,7 +5,7 @@ from setuptools.extension import Extension
 import os
 import numpy
 
-version='0.0.8'
+version='0.0.10'
 c_ext = Extension('pyquat/_pyquat', ['pyquat/pyquat.c'], include_dirs=[numpy.get_include()])
 
 setup(name='pyquat',

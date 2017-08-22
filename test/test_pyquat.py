@@ -204,7 +204,19 @@ class TestPyquat(QuaternionTest):
         self.assert_almost_equal(q1, q2)
         np.testing.assert_array_almost_equal(w2, w3)
         np.testing.assert_array_almost_equal(w1, w2)
-        
+
+    def test_integration_handles_zero(self):
+        dt = 0.1
+        q = pq.identity()
+        w = np.zeros((3,1))
+        J = np.diag([200.0, 200.0, 100.0])
+        q1, w1 = pq.step_rk4(q, w, dt, J = J)
+        q2, w2 = pq.step_cg3(q, w, dt, J = J)
+        q3, w3 = pq.step_cg4(q, w, dt, J = J)
+
+        self.assert_equal(q, q1)
+        self.assert_equal(q, q2)
+        self.assert_equal(q, q3)
         
 if __name__ == '__main__':
     unittest.main()

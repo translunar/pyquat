@@ -151,7 +151,9 @@ def step_rk4(q, w, dt, w_dynamics = wdot, q_dynamics = qdot, J = None, J_inv = N
     Use a standard Runge-Kutta 4-step / 4th-order integration to step
     the quaternion forward in time.
     """
-
+    if linalg.norm(w) <= QUAT_SMALL:
+        return (q, w)
+    
     #C1 = 0.0
     #C2 = 0.5
     #C3 = 0.5
@@ -169,8 +171,7 @@ def step_rk4(q, w, dt, w_dynamics = wdot, q_dynamics = qdot, J = None, J_inv = N
         J_inv = J
     elif J_inv is None:
         J_inv = linalg.inv(J)
-    
-                     
+                 
     q1  = q.to_vector()
     w1  = w # + C1 * dt
     qk1 = q_dynamics(q1, w1) #q = q1, w = w1
@@ -222,6 +223,9 @@ def step_cg3(
     This method returns a tuple containing the resulting quaternion
     and omega.
     """
+    if linalg.norm(w) <= QUAT_SMALL:
+        return (q, w)
+    
     B1 = 13/51.0
     B2 = -2/3.0
     B3 = 24/17.0
@@ -276,6 +280,9 @@ def step_cg4(
     This method returns a tuple containing the resulting quaternion
     and omega.
     """
+    if linalg.norm(w) <= QUAT_SMALL:
+        return (q, w)
+    
     B1 =   0.1370831520630755
     B2 =  -0.0183698531564020
     B3 =   0.7397813985370780
@@ -302,7 +309,7 @@ def step_cg4(
         J_inv = J
     elif J_inv is None:
         J_inv = linalg.inv(J)
-
+        
     q1  = q.to_vector()
     w1  = w
     wk1 = w_dynamics(w1, J, J_inv)
