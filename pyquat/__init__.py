@@ -7,6 +7,8 @@ import warnings
 
 QUAT_SMALL = 1e-8
 
+
+
 def angular_velocity_as_matrix(w):
     """
     Computes the big Omega of some angular velocity.
@@ -241,7 +243,7 @@ def step_cg3(
         J_inv = J
     elif J_inv is None:
         J_inv = linalg.inv(J)
-
+        
     q1  = q.to_vector()
     w1  = w
     wk1 = w_dynamics(w1, J, J_inv)
@@ -309,7 +311,7 @@ def step_cg4(
         J_inv = J
     elif J_inv is None:
         J_inv = linalg.inv(J)
-        
+
     q1  = q.to_vector()
     w1  = w
     wk1 = w_dynamics(w1, J, J_inv)
@@ -346,3 +348,10 @@ def step_cg4(
 
 
     return (Quat(*q_next), w_next)
+
+
+
+
+
+
+    

@@ -56,3 +56,34 @@ def plot(q_ary, t = None, rotate_axis='x', fig = None, axes = None, **kwargs):
             axes.plot(ary[0,i-1:i+1], ary[1,i-1:i+1], ary[2,i-1:i+1], c = tuple(c[:,i]), **kwargs)
     else:
         return axes.plot(ary[0,:], ary[1,:], ary[2,:], **kwargs)
+
+def plot_frame(q, r = numpy.zeros((3,1)), fig = None, axes = None, axis_size = 1.0):
+    """
+    Plot a quaternion as a coordinate frame, with red, green, and blue 
+    referring to x, y, and z.
+
+    Also accepts an optional position to move the frame to (post-rotation).
+    """
+    if fig is None:
+        fig = matplotlib.pyplot.figure()
+    if axes is None:
+        axes = fig.add_subplot(111, projection='3d')
+
+    xh = numpy.zeros((3,2))
+    yh = numpy.zeros_like(xh)
+    zh = numpy.zeros_like(xh)
+    xh[0,1] = axis_size
+    yh[1,1] = axis_size
+    zh[2,1] = axis_size
+
+    # Transform the frame (rotate it and then move it)
+    T = q.to_matrix()
+    txh = np.dot(T, xh) + r
+    tyh = np.dot(T, yh) + r
+    tzh = np.dot(T, zh) + r
+    
+    axes.plot(txh[0,:], txh[1,:], txh[2,:], c='r')
+    axes.plot(tyh[0,:], tyh[1,:], tyh[2,:], c='g')
+    axes.plot(tzh[0,:], tzh[1,:], tzh[2,:], c='b')
+    
+    return axes

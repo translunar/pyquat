@@ -1,11 +1,10 @@
-import unittest
 import numpy as np
 from scipy import linalg
 import pyquat as pq
 from pyquat import Quat
 from assertions import QuaternionTest
 import math
-
+import unittest
 
 class TestPyquat(QuaternionTest):
 
@@ -217,6 +216,7 @@ class TestPyquat(QuaternionTest):
         self.assert_equal(q, q1)
         self.assert_equal(q, q2)
         self.assert_equal(q, q3)
+
         
 if __name__ == '__main__':
     unittest.main()
