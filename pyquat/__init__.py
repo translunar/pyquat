@@ -56,16 +56,12 @@ def propagate(q, w, dt, big_w = None):
     timestep dt.
     """
 
-    if expm is None:
-        # Find magnitude of angular velocity (in r/s)
-        w_norm = linalg.norm(w)
-        if w_norm < QUAT_SMALL:
-            return q
-        e = w / w_norm
-        return Quat.from_angle_axis(w_norm * dt, *e) * q
-    else:
-        return Quat(*(numpy.dot(expm(w, dt, big_w), q.to_vector())))
-
+    # Find magnitude of angular velocity (in r/s)
+    w_norm = linalg.norm(w)
+    if w_norm < QUAT_SMALL:
+        return q
+    return Quat(*(numpy.dot(expm(w, dt, big_w), q.to_vector())))
+    
 def cov(ary):
     """
     Compute the covariance of an array of quaternions, where each

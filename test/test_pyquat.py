@@ -157,6 +157,13 @@ class TestPyquat(QuaternionTest):
         T1   = np.identity(3) - Tdot * dt # dT = (I - [phi x])
         self.assert_almost_equal_as_quat(q1, T1)
 
+    def test_0_propagate(self):
+        dt = 0.01
+        q0 = Quat(1.0, 0, 0, 0)
+        w0 = np.zeros((3,1))
+        q1 = pq.propagate(q0, w0, dt)
+        self.assert_equal(q0, q1)
+
     def test_rk4_integration(self):
         dt = 0.05
         q = Quat(1.0, 2.0, 3.0, 4.0).normalized()
