@@ -6,7 +6,6 @@ import pyquat.wahba as pqw
 from assertions import QuaternionTest
 import math
 import unittest
-from esoq2p1 import esoq2p1
         
 class TestWahba(QuaternionTest):
     def test_attitude_profile_matrix_from_quaternion(self):
@@ -48,7 +47,6 @@ class TestWahba(QuaternionTest):
         self.assertEqual(K.shape[1], 4)
 
     def test_davenport_eigenvalues(self):
-        return
         ref = np.array([[1.0, 0.0],
                         [0.0, 0.0],
                         [0.0, 1.0]])
@@ -58,7 +56,7 @@ class TestWahba(QuaternionTest):
         B = pqw.attitude_profile_matrix(obs = obs, ref = ref)
         irot = pqw.sequential_rotation(B)
         K = pqw.davenport_matrix(B)
-        l = pqw.davenport_eigenvalues(K, n_obs = 2)
+        l = pqw.davenport_eigenvalues(K, B, n_obs = 2)
         self.assertLessEqual(-1.0 - 1e-6, l[3])
         self.assertLessEqual(l[3], l[2])
         self.assertLessEqual(l[2], l[1])
@@ -84,15 +82,9 @@ class TestWahba(QuaternionTest):
         obs = np.array([[1.0, 0.0],
                         [0.0, 0.0],
                         [0.0, 1.0]])
-        
-        q, loss = pqw.esoq2(obs = obs, ref = ref)
-        q1, loss1 = esoq2p1(obs, ref, np.ones(2) * 0.5)
-        q1 = Quat(q1[0], q1[1], q1[2], q1[3])
-        self.assert_equal(q, pq.identity())
-        self.assert_equal(q, q1)
+        self.assert_esoq2_two_observations_correct(ref = ref, obs = obs, decimal=12)
 
     def test_esoq2_90_z_rotation(self):
-        return
         """
         Test borrowed from https://github.com/muzhig/ESOQ2/blob/master/test.cpp
         """
@@ -102,13 +94,9 @@ class TestWahba(QuaternionTest):
         obs = np.array([[0.0, 0.0],
                         [1.0, 0.0],
                         [0.0, 1.0]])
-        q1, loss1 = esoq2p1(obs, ref, np.ones(2) * 0.5)
-        q, loss   = pqw.esoq2(obs = obs, ref = ref)
-        q1 = Quat(q1[3], q1[0], q1[1], q1[2])
-        self.assert_equal(q, q1)
+        self.assert_esoq2_two_observations_correct(ref = ref, obs = obs, decimal=12)
 
     def test_esoq2_90_x_rotation(self):
-        return
         """
         Test borrowed from https://github.com/muzhig/ESOQ2/blob/master/test.cpp
         """
@@ -118,13 +106,9 @@ class TestWahba(QuaternionTest):
         obs = np.array([[1.0, 0.0],
                         [0.0, -1.0],
                         [0.0, 0.0]])
-        q1, loss1 = esoq2p1(obs, ref, np.ones(2) * 0.5)
-        q, loss   = pqw.esoq2(obs = obs, ref = ref)
-        q1 = Quat(q1[3], q1[0], q1[1], q1[2])
-        self.assert_equal(q, q1)
+        self.assert_esoq2_two_observations_correct(ref = ref, obs = obs, decimal=12)
 
     def test_esoq2_90_y_rotation(self):
-        return
         """
         Test borrowed from https://github.com/muzhig/ESOQ2/blob/master/test.cpp
         """
@@ -134,11 +118,30 @@ class TestWahba(QuaternionTest):
         obs = np.array([[0.0, 1.0],
                         [0.0, 0.0],
                         [-1.0, 0.0]])
-        q1, loss1 = esoq2p1(obs, ref, np.ones(2) * 0.5)
-        q, loss   = pqw.esoq2(obs = obs, ref = ref)
-        q1 = Quat(q1[3], q1[0], q1[1], q1[2])
-        self.assert_equal(q, q1)
+        self.assert_esoq2_two_observations_correct(ref = ref, obs = obs, decimal=12)
 
+        
+    def test_esoq2_actual_rotation(self):
+        """
+        Test against a different method than ESOQ2 for computing
+        the quaternion.
+        """
+        ref_d = np.array([[-0.13745816],
+                          [ 0.44258304],
+                          [ 0.88612951]])
+        ref_e = np.array([[-0.27904739],
+                          [ 0.8410828 ],
+                          [-0.46337056]])
+        obs_d = np.array([[-0.65361096],
+                          [ 0.38250994],
+                          [ 0.65305348]])
+        obs_e = np.array([[ 0.37343209],
+                          [ 0.91352261],
+                          [-0.16132242]])
+
+        ref   = np.hstack((ref_d, ref_e))
+        obs   = np.hstack((obs_d, obs_e))
+        self.assert_esoq2_two_observations_correct(ref = ref, obs = obs, decimal=8)        
 
 if __name__ == '__main__':
     unittest.main()

@@ -68,7 +68,6 @@ def attitude_profile_matrix(q           = None,
         vector observations. Journal of Guidance and Control 4(1): 
         70-77.
     """
-    
     if q is not None:
         if inverse_cov is None:
             inverse_cov = linalg.inv(cov)
@@ -98,13 +97,15 @@ def davenport_matrix(B = None,  **attitude_profile_kwargs):
     for the attitude_profile_matrix() function. Returns a 4x4
     Davenport matrix K.
     """
+
     if B is None:
         B  = attitude_profile_matrix(**attitude_profile_kwargs)
+    
     S  = B + B.T
     mu = np.trace(B)
     zx = B.T - B
     z  = np.array([[zx[2,1]], [zx[0,2]], [zx[1,0]]])
-    
+
     K = np.vstack((np.hstack((np.array([[mu]]), z.T)),
                    np.hstack((z, S - np.identity(3)*mu))))
     return K
@@ -148,6 +149,16 @@ def sequential_rotation(B = None, q = None, irot = None):
     small before the method of sequential rotations need [sic.]
     to be invoked." [0]
 
+    This method has three different calling modes:
+
+    1. Supply irot and attitude profile matrix B. This performs the
+       specified rotation on B and returns B.
+    2. Supply irot and quaternion q. This performs the specified
+       rotation on q and returns q.
+    3. Supply only an attitude profile matrix B. Determines the
+       rotation to perform, performs the rotation, and returns
+       irot.
+
     This method produces a sequential rotation of the attitude
     profile matrix B and returns the rotation performed. It is
     indifferent to the angle of rotation.
@@ -160,29 +171,28 @@ def sequential_rotation(B = None, q = None, irot = None):
         vector observations. Journal of Guidance and Control 4(1): 
         70-77.
     """
-    if B is None:
-        if irot == 0:
-            return Quat(-q.x, q.w, -q.z, q.y)
-        elif irot == 1:
-            return Quat(-q.y, q.z, q.w, -q.x)
-        elif irot == 2:
-            return Quat(-q.x, q.w, -q.z, q.y)
-    else:
+    if irot is None:
         diag_B  = np.diag(B)
         irot    = np.argmin(diag_B)
-        min_B   = diag_B[irot]
-
-        if irot == 0:
-            B[:,1:3] *= -1.0
-        elif irot == 1:
-            B[:,0] *= -1.0
-            B[:,2] *= -1.0
-        elif irot == 2:
-            B[:,0:2] *= -1.0
-
-
-
-    return irot
+        sequential_rotation(B, irot = irot)
+        return irot
+    else:
+        if B is None:
+            if irot == 0:
+                return Quat(-q.x, q.w, -q.z, q.y)
+            elif irot == 1:
+                return Quat(-q.y, q.z, q.w, -q.x)
+            elif irot == 2:
+                return Quat(-q.x, q.w, -q.z, q.y)
+        else:
+            if irot == 0:
+                B[:,1:3] *= -1.0
+            elif irot == 1:
+                B[:,0] *= -1.0
+                B[:,2] *= -1.0
+            elif irot == 2:
+                B[:,0:2] *= -1.0
+            return B
         
 
 def davenport_eigenvalues(K = None, B = None, tr_B = None, tr_adj_K = None, tr_K = None, S = None, z = None, n_obs = None):
@@ -200,14 +210,10 @@ def davenport_eigenvalues(K = None, B = None, tr_B = None, tr_adj_K = None, tr_K
         Astronautical Sciences 95: 817-826.
 
     """
-    if B is None:
-        B = K[1:4,1:4]
-    if K is None:
-        K = davenport_matrix(B)
     if tr_adj_K is None:
         tr_adj_K = trace_adj(K)
     if tr_B is None:
-        tr_B = np.trace(B)
+        tr_B = K[0,0]
     if S is None:
         S = B+B.T
     tr_adj_S = trace_adj_symm(S)
@@ -248,7 +254,10 @@ def davenport_eigenvalues(K = None, B = None, tr_B = None, tr_adj_K = None, tr_K
     return np.array([lambda_4, lambda_3, lambda_2, lambda_1])
 
 
-def esoq2(B = None, lambda_0 = None, **attitude_profile_kwargs):
+def esoq2(K,
+          B        = None,
+          lambda_0 = None,
+          n_obs    = None):
     """
     Compute the optimal quaternion using Mortari's second estimator.
     
@@ -266,36 +275,29 @@ def esoq2(B = None, lambda_0 = None, **attitude_profile_kwargs):
     from Wahba's problem as a tuple.
 
     """
-    if B is None:
-        B = attitude_profile_matrix(**attitude_profile_kwargs)
-        if 'weights' in attitude_profile_kwargs:
-            weights = attitude_profile_kwargs['weights']
-            weights_equal = False
-            n_obs = weights.shape[0]
-        else:
-            obs     = attitude_profile_kwargs['obs']
-            n_obs   = obs.shape[1]
-            weights = np.ones(n_obs) / float(n_obs)
-            weights_equal = True
 
     if lambda_0 is None: # Initial guess for maximum eigenvalue
-        lambda_0 = n_obs
-    
-    irot = sequential_rotation(B)
+        lambda_0 = float(n_obs)
 
-    K = davenport_matrix(B)
-    tr_B = np.trace(B)
-    z = K[1:4,0].reshape((3,1))
+    tr_B = K[0,0]
+    z    = K[1:4,0].reshape((3,1))
 
-    lambdas = davenport_eigenvalues(K, B, tr_B, z = z, n_obs = n_obs)
+    # Note: This uses the S definition from Christian and Lightsey (2010).
+    # The one from Mortari is S_minus_tpl.
+    if B is None:
+        S    = K[1:4,1:4] + np.identity(3)*tr_B
+    else:
+        S    = B+B.T
+
+    lambdas = davenport_eigenvalues(K, tr_B, S = S, z = z, n_obs = n_obs)
     lambda_max = lambdas[0]
     loss = lambda_0 - lambda_max
 
     trace_plus_lambda  = tr_B + lambda_max
     trace_minus_lambda = tr_B - lambda_max
     
-    S = B+B.T - np.identity(3) * trace_plus_lambda
-    M = S * trace_minus_lambda - np.dot(z, z.T)
+    S_minus_tpl = S - np.identity(3) * trace_plus_lambda
+    M = S_minus_tpl * trace_minus_lambda - np.dot(z, z.T)
     m1 = M[0,0:3]
     m2 = M[1,0:3]
     m3 = M[2,0:3]
@@ -310,9 +312,9 @@ def esoq2(B = None, lambda_0 = None, **attitude_profile_kwargs):
         # This piece borrowed from:
         # https://github.com/muzhig/ESOQ2/blob/master/esoq2p1.py.
         # Has not yet been tested!!!
-        n1 = np.array([S[0,0] - 2 * lambda_max, S[0,1], S[2,0]])
-        n2 = np.array([S[0,1], S[1,1] - 2 * lambda_max, S[1,2]])
-        n3 = np.array([S[2,0], S[1,2], S[2,2] - 2 * lambda_max])
+        n1 = np.array([S_minus_tpl[0,0] - 2 * lambda_max, S_minus_tpl[0,1], S_minus_tpl[2,0]])
+        n2 = np.array([S_minus_tpl[0,1], S_minus_tpl[1,1] - 2 * lambda_max, S_minus_tpl[1,2]])
+        n3 = np.array([S_minus_tpl[2,0], S_minus_tpl[1,2], S_minus_tpl[2,2] - 2 * lambda_max])
         aa = [m2, m3, m1][imax]
         bb = [n3, n1, n2][imax]
         cc = [m3, m1, m2][imax]
@@ -327,8 +329,7 @@ def esoq2(B = None, lambda_0 = None, **attitude_profile_kwargs):
         
 
     # Find the normalized quaternion (unrotated)
-    q = sequential_rotation(q = Quat(np.dot(z.T, e),
-                                     *(e * -trace_minus_lambda)),
-                            irot = irot).normalized()
+    q = Quat(np.dot(z.T, e),
+             *(e * -trace_minus_lambda)).normalized()
     return q, loss
 
