@@ -5,7 +5,6 @@
 #include <structmember.h>
 #include <numpy/arrayobject.h>
 
-
 #ifndef PyMODINIT_FUNC /* declarations for dylib/dll/so import/export */
 #define PyMODINIT_FUNC void
 #endif
@@ -19,5 +18,6 @@ typedef struct {
   double s;     // scalar component
   double v[3];  // vector components
 } pyquat_Quat;
+
 
 #endif // PYQUAT_H

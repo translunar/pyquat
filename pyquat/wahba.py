@@ -330,6 +330,7 @@ def esoq2(K,
 
     # Find the normalized quaternion (unrotated)
     q = Quat(np.dot(z.T, e),
-             *(e * -trace_minus_lambda)).normalized()
+             *(e * -trace_minus_lambda)).normalized_large()
+        
     return q, loss
 

@@ -5,9 +5,13 @@ from setuptools.extension import Extension
 import os
 import numpy
 
-version='0.1.1'
-c_ext = Extension('pyquat/_pyquat', ['pyquat/pyquat.c'], include_dirs=[numpy.get_include()])
-
+version='0.1.2'
+c_ext = Extension('pyquat/_pyquat',
+                  ['pyquat/pyquat.c'],
+                  include_dirs  = [numpy.get_include()],
+                  define_macros = [('MAJOR_VERSION', '0'),
+                                   ('MINOR_VERSION', '1'),
+                                   ('TINY_VERSION', '2')])
 setup(name='pyquat',
       version=version,
       description='Python C quaternion type with attitude utility functions',

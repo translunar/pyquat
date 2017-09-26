@@ -10,8 +10,10 @@ static PyObject* pyquat_Quat_from_matrix(PyObject* type, PyObject* args);
 static PyObject* pyquat_Quat_repr(PyObject* self);
 static PyObject* pyquat_Quat_mul(PyObject* self, PyObject* args);
 static PyObject* pyquat_Quat_inplace_normalize(PyObject* self);
+static PyObject* pyquat_Quat_inplace_normalize_large(PyObject* self);
 static PyObject* pyquat_Quat_inplace_conjugate(PyObject* self);
 static PyObject* pyquat_Quat_normalize(PyObject* self);
+static PyObject* pyquat_Quat_normalize_large(PyObject* self);
 static PyObject* pyquat_Quat_conjugate(PyObject* self);
 static PyObject* pyquat_Quat_to_rotation_vector(PyObject* self);
 static void      to_matrix(pyquat_Quat* q, double* T);
@@ -61,8 +63,10 @@ static PyMethodDef pyquat_Quat_methods[] = {
   {"to_vector", (PyCFunction)pyquat_Quat_to_vector, METH_NOARGS, "convert to a 4x1 vector"},
   {"to_unit_vector", (PyCFunction)pyquat_Quat_to_unit_vector, METH_VARARGS, "convert to a 3x1 unit vector representing the attitude on the surface of a unit sphere"},
   {"normalize", (PyCFunction)pyquat_Quat_inplace_normalize, METH_NOARGS, "in-place normalize the quaternion"},
+  {"normalize_large", (PyCFunction)pyquat_Quat_inplace_normalize_large, METH_NOARGS, "in-place normalize the quaternion, avoiding overflow"},
   {"conjugate", (PyCFunction)pyquat_Quat_inplace_conjugate, METH_NOARGS, "in-place conjugate the quaternion"},
   {"normalized", (PyCFunction)pyquat_Quat_normalize, METH_NOARGS, "normalize the quaternion"},
+  {"normalized_large", (PyCFunction)pyquat_Quat_normalize_large, METH_NOARGS, "normalize the quaternion, avoiding overflow"},
   {"conjugated", (PyCFunction)pyquat_Quat_conjugate, METH_NOARGS, "copy and conjugate the quaternion"},
   {NULL, NULL, 0, NULL}  /* Sentinel */
 };
@@ -229,23 +233,91 @@ static PyObject * pyquat_Quat_mul(PyObject* self, PyObject* arg) {
   return (PyObject*)(result);
 }
 
-static PyObject* pyquat_Quat_inplace_normalize(PyObject* self) {
 
-  pyquat_Quat* q = (pyquat_Quat*)(self);
-
-  double q_mag = sqrt(q->s * q->s + q->v[0] * q->v[0] + q->v[1] * q->v[1] + q->v[2] * q->v[2]);
-  if (q_mag > PYQUAT_SMALL) {
-    q->s    /= q_mag;
-    q->v[0] /= q_mag;
-    q->v[1] /= q_mag;
-    q->v[2] /= q_mag;
-  } else { // cannot normalize, so just use identity
-    q->s = 1.0;
-    q->v[0] = q->v[1] = q->v[2] = 0.0;
+static double abs_max_component(pyquat_Quat* q) {
+  double qw = fabs(q->s);
+  double qx = fabs(q->v[0]);
+  double qy = fabs(q->v[1]);
+  double qz = fabs(q->v[2]);
+  if (qw > qx) {
+    if (qy > qz) return qw > qy ? qw : qy;
+    else         return qw > qz ? qw : qz;
+  } else {
+    if (qy > qz) return qx > qy ? qx : qy;
+    else         return qx > qz ? qx : qz;
   }
+}
+
+
+static void normalize_large(pyquat_Quat* result, pyquat_Quat* q) {
+  double q_max = abs_max_component(q);
+
+  result->s    = q->s    / q_max;
+  result->v[0] = q->v[0] / q_max;
+  result->v[1] = q->v[1] / q_max;
+  result->v[2] = q->v[2] / q_max;
+
+  double scaled_mag = sqrt(result->s    * result->s +
+                           result->v[0] * result->v[0] +
+                           result->v[1] * result->v[1] +
+                           result->v[2] * result->v[2]);
+
+  if (scaled_mag > PYQUAT_SMALL) {
+    result->s    /= scaled_mag;
+    result->v[0] /= scaled_mag;
+    result->v[1] /= scaled_mag;
+    result->v[2] /= scaled_mag;
+  } else { // can't normalize, so just use identity
+    printf("scaled_mag = %f, q_max = %f\n", scaled_mag, q_max);
+    result->s    = 1.0;
+    result->v[0] = result->v[1] = result->v[2] = 0.0;
+  }
+}
+
+
+static PyObject* pyquat_Quat_inplace_normalize_large(PyObject* self) {
+  pyquat_Quat* q = (pyquat_Quat*)(self);
+  normalize_large(q, q);
 
   Py_INCREF(self);
+  return self;
+}
 
+
+static PyObject* pyquat_Quat_normalize_large(PyObject* self) {
+  pyquat_Quat* q      = (pyquat_Quat*)(self);
+
+  // allocate a quaternion for the result
+  pyquat_Quat* result = (pyquat_Quat*) PyObject_New(pyquat_Quat, &pyquat_QuatType);
+  if (!result) {
+    PyErr_NoMemory();
+    return NULL;
+  }
+
+  normalize_large(result, q);
+  return (PyObject*)result;
+}
+
+
+static void normalize(pyquat_Quat* result, pyquat_Quat* q) {
+  double q_mag = sqrt(q->s * q->s + q->v[0] * q->v[0] + q->v[1] * q->v[1] + q->v[2] * q->v[2]);
+  if (q_mag > PYQUAT_SMALL) {
+    result->s     = q->s / q_mag;
+    result->v[0]  = q->v[0] / q_mag;
+    result->v[1]  = q->v[1] / q_mag;
+    result->v[2]  = q->v[2] / q_mag;
+  } else { // can't normalize, so just use identity
+    result->s     = 1.0;
+    result->v[0]  = result->v[1] = result->v[2] = 0.0;
+  }
+}
+
+
+static PyObject* pyquat_Quat_inplace_normalize(PyObject* self) {
+  pyquat_Quat* q = (pyquat_Quat*)(self);
+  normalize(q, q);
+
+  Py_INCREF(self);
   return self;
 }
 
@@ -260,17 +332,7 @@ static PyObject* pyquat_Quat_normalize(PyObject* self) {
     return NULL;
   }
 
-  double q_mag = sqrt(q->s * q->s + q->v[0] * q->v[0] + q->v[1] * q->v[1] + q->v[2] * q->v[2]);
-  if (q_mag > PYQUAT_SMALL) {
-    result->s     = q->s / q_mag;
-    result->v[0]  = q->v[0] / q_mag;
-    result->v[1]  = q->v[1] / q_mag;
-    result->v[2]  = q->v[2] / q_mag;   
-  } else { // can't normalize, so just use identity
-    result->s     = 1.0;
-    result->v[0]  = result->v[1] = result->v[2] = 0.0;
-  }
-
+  normalize(result, q);
   return (PyObject*)result;
 }
 

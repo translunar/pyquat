@@ -92,16 +92,25 @@ class TestPyquat(QuaternionTest):
     def test_normalize(self):
         q0 = Quat(4.0, 3.0, 2.0, 1.0)
         q1 = Quat(4.0, 3.0, 2.0, 1.0)
+        q5 = Quat(4.0, 3.0, 2.0, 1.0)
         q2 = q1.normalized()
 
         # Test that normalized() changed q2 and not q1
         self.assert_not_equal(q1, q2)
         self.assert_equal(q0, q1)
 
+        # Test that normalized_large() works
+        q4 = q1.normalized_large()
+        self.assert_equal(q2, q4)
+
         # Now test that normalize() changes q1
         q1.normalize()
         self.assert_not_equal(q0, q1)
         self.assert_equal(q1, q2)
+
+        # Test that normalize_large() changes q4 correctly
+        q5.normalize_large()
+        self.assert_equal(q1, q5)
 
         # Now test that normalize does what we expect it to do.
         v = np.array([[4.0, 3.0, 2.0, 1.0]]).T
@@ -115,7 +124,24 @@ class TestPyquat(QuaternionTest):
         self.assert_equal(q3, Quat(0.0, 0.0, 0.0, 0.0))
         q3.normalize()
         self.assert_equal(q3, pq.identity()) # in-place test
-    
+
+    def test_normalize_large(self):
+        """
+        Basic functionality of normalize_large is in test_normalize().
+        This method checks that overflow is avoided.
+        """
+        q_max = 3.9545290113758423e+256
+        q0 = Quat(-9.6241008572232875e+255,
+                   q_max,
+                  -2.3364730154155227e+255,
+                  -2.2751942430616868e+256)
+        v0 = q0.to_vector()
+        v1 = v0 / q_max
+        v1_mag = math.sqrt(v1[0,0]**2 + v1[1,0]**2 + v1[2,0]**2 + v1[3,0]**2)
+        v2 = v1 / v1_mag
+        q1 = Quat(v2[0], v2[1], v2[2], v2[3]) 
+        q2 = q0.normalized_large()
+        self.assert_equal(q1, q2)
 
     def test_conjugate(self):
         q0 = Quat(4.0, -3.0, -2.0, -1.0)
