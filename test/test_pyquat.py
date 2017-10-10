@@ -6,6 +6,18 @@ from assertions import QuaternionTest
 import math
 import unittest
 
+def slow_skew(v):
+    """
+    Generate a skew-symmetric matrix from a vector.
+    
+    Code borrowed from: https://pythonpath.wordpress.com/2012/09/04/skew-with-numpy-operations/
+
+    Kept only for testing purposes.
+    """
+    #if len(v) == 4: v = v[:3]/v[3]
+    skv = np.roll(np.roll(np.diag(v.flatten()), 1, 1), -1, 0)
+    return skv - skv.T
+
 class TestPyquat(QuaternionTest):
 
     def test_mean(self):
@@ -156,11 +168,13 @@ class TestPyquat(QuaternionTest):
         self.assert_equal(q0, q1)
 
     def test_skew(self):
-        v = np.array([[1.0, 2.0, 3.0]]).T
-        vx = pq.skew(v)
-        np.testing.assert_array_equal(vx, np.array([[ 0.0, -3.0,  2.0],
-                                                    [ 3.0,  0.0, -1.0],
-                                                    [-2.0,  1.0,  0.0]]))
+        w = np.array([[0.03, 0.02, 0.01]]).T
+
+        # old method:
+        skv = np.roll(np.roll(np.diag(w.flatten()), 1, 1), -1, 0)
+        wx  = skv - skv.T
+        
+        np.testing.assert_array_equal(wx, pq.skew(w))        
 
     def test_propagate(self):
         dt = 0.01
@@ -224,18 +238,29 @@ class TestPyquat(QuaternionTest):
         J = np.diag([200.0, 200.0, 100.0])
 
         # Test propagation using RK4
-        q1, w1 = pq.step_rk4(q, w, dt, J = J)
+        q1, w1 = pq.step_rk4(q, w, dt, J = J, w_dynamics = pq.wdot)
 
         # Test propagation using CG3
-        q2, w2 = pq.step_cg3(q, w, dt, J = J)
+        q2, w2 = pq.step_cg3(q, w, dt, J = J, w_dynamics = pq.wdot)
 
         # Test propagation using CG4
-        q3, w3 = pq.step_cg4(q, w, dt, J = J)
+        q3, w3 = pq.step_cg4(q, w, dt, J = J, w_dynamics = pq.wdot)
 
         self.assert_almost_equal(q2, q3)
         self.assert_almost_equal(q1, q2)
         np.testing.assert_array_almost_equal(w2, w3)
         np.testing.assert_array_almost_equal(w1, w2)
+
+        # Test propagation without angular velocity dynamics using each method
+        q4, w4 = pq.step_rk4(q, w, dt, w_dynamics = None)
+        q5, w5 = pq.step_cg3(q, w, dt, w_dynamics = None)
+        q6, w6 = pq.step_cg4(q, w, dt, w_dynamics = None)
+
+        self.assert_almost_equal(q4, q5)
+        self.assert_almost_equal(q5, q6)
+        np.testing.assert_array_equal(w, w4)
+        np.testing.assert_array_equal(w, w5)
+        np.testing.assert_array_equal(w, w6)
 
     def test_integration_handles_zero(self):
         dt = 0.1
@@ -249,6 +274,18 @@ class TestPyquat(QuaternionTest):
         self.assert_equal(q, q1)
         self.assert_equal(q, q2)
         self.assert_equal(q, q3)
+
+    def test_big_omega(self):
+        w = np.array([[0.03, 0.02, 0.01]]).T
+        W = pq.big_omega(w)
+
+        W1 = np.array([[0.0,    -w[0,0], -w[1,0], -w[2,0]],
+                       [w[0,0],  0.0,     w[2,0], -w[1,0]],
+                       [w[1,0], -w[2,0],  0.0,     w[0,0]],
+                       [w[2,0],  w[1,0], -w[0,0],  0.0]])
+        
+        np.testing.assert_array_equal(W, W1)
+
 
         
 if __name__ == '__main__':

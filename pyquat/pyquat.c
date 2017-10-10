@@ -23,6 +23,9 @@ static PyObject* pyquat_Quat_to_vector(PyObject* self);
 static PyObject* pyquat_identity(PyObject* self);
 static int       pyquat_Quat_compare(PyObject* left, PyObject* right);
 static PyObject* pyquat_rotation_vector_to_matrix(PyObject* self, PyObject* args);
+static PyObject* pyquat_big_omega(PyObject* self, PyObject* args);
+static PyObject* pyquat_skew(PyObject* self, PyObject* args);
+static PyObject* pyquat_expm(PyObject* self, PyObject* args);
 
 /*
 static PyObject * pyquat_Quat_new(PyTypeObject* type, PyObject* args) {
@@ -35,6 +38,9 @@ static PyObject * pyquat_Quat_new(PyTypeObject* type, PyObject* args) {
 static PyMethodDef pyquat_methods[] = {
   {"identity", (PyCFunction)pyquat_identity, METH_NOARGS, "create an identity quaternion (1.0, 0.0, 0.0, 0.0)"},
   {"rotation_vector_to_matrix", (PyCFunction)pyquat_rotation_vector_to_matrix, METH_VARARGS, "convert a rotation vector direction to a directed-cosine matrix, skipping the quaternion"},
+  {"big_omega", (PyCFunction)pyquat_big_omega, METH_VARARGS, "compute the 4x4 Omega matrix for some angular velocity"},
+  {"skew", (PyCFunction)pyquat_skew, METH_VARARGS, "compute the 3x3 cross-product (skew symmetric) matrix for some vector"},
+  {"expm", (PyCFunction)pyquat_expm, METH_VARARGS, "compute the 4x4 matrix exponential for quaternion propagation for some angular velocity and time step"},
   {NULL, NULL, 0, NULL}  /* Sentinel */
 };
 
@@ -680,6 +686,148 @@ static PyObject* pyquat_rotation_vector_to_matrix(PyObject* self, PyObject* args
 
   return NULL;
 }
+
+
+static void skew(double* v, double* vx) {
+  vx[0] =  0.0;
+  vx[1] = -v[2];
+  vx[2] =  v[1];
+  
+  vx[3] =  v[2];
+  vx[4] =  0.0;
+  vx[5] = -v[0];
+
+  vx[6] = -v[1];
+  vx[7] =  v[0];
+  vx[8] =  0.0;
+}
+
+
+static PyObject* pyquat_skew(PyObject* self, PyObject* args) {
+  PyArrayObject* ary;
+  if (PyArg_ParseTuple(args, "O!|:skew", &PyArray_Type, &ary)) {
+
+    // First allocate a place to put it, and check that allocation was successful.
+    npy_intp dims[2] = {3,3};
+    PyArrayObject* mat = (PyArrayObject*)PyArray_SimpleNew(2, dims, NPY_DOUBLE);
+    if (!mat) {
+      PyErr_NoMemory();
+      return NULL;
+    }
+    double* vx   = (double*)mat->data;
+    double* v    = (double*)ary->data;
+    skew(v, vx);
+
+    return PyArray_Return(mat);
+  }
+
+  return NULL;
+}
+
+
+/* Helper function for pyquat_big_omega() */
+static void big_omega(double* w, double* W) {
+  W[0]  =  0.0;
+  W[1]  = -w[0];
+  W[2]  = -w[1];
+  W[3]  = -w[2];
+    
+  W[4]  =  w[0];
+  W[5]  =  0.0;
+  W[6]  =  w[2];
+  W[7]  = -w[1];
+    
+  W[8]  =  w[1];
+  W[9]  = -w[2];
+  W[10] =  0.0;
+  W[11] =  w[0];
+
+  W[12] =  w[2];
+  W[13] =  w[1];
+  W[14] = -w[0];
+  W[15] =  0.0;
+}
+
+
+static PyObject* pyquat_big_omega(PyObject* self, PyObject* args) {
+  PyArrayObject* ary;
+  if (PyArg_ParseTuple(args, "O!|:big_omega", &PyArray_Type, &ary)) {
+
+    // First allocate a place to put it, and check that allocation was successful.
+    npy_intp dims[2] = {4,4};
+    PyArrayObject* mat = (PyArrayObject*)PyArray_SimpleNew(2, dims, NPY_DOUBLE);
+    if (!mat) {
+      PyErr_NoMemory();
+      return NULL;
+    }
+    
+    double* w = (double*)ary->data;    
+    double* W = (double*)mat->data;
+    big_omega(w, W);
+
+    return PyArray_Return(mat);
+  }
+
+  return NULL;
+}
+
+
+/* Closed-form matrix exponential for an angular velocity and time step */
+static void expm(double* w, double dt, double* M) {
+
+  // Compute the magnitude of the angular velocity, then use that to get the
+  // total angle over the time step dt.
+  double w_mag = sqrt(w[0]*w[0] + w[1]*w[1] + w[2]*w[2]);
+  double theta = 0.5 * dt * w_mag;
+
+  double c        = cos(theta);
+  double s_over_w = sin(theta) / w_mag;
+
+  // I*cos(theta) + Omega(w) * sin(theta) / mag(w)
+  M[0]  =  c;
+  M[1]  = -w[0] * s_over_w;
+  M[2]  = -w[1] * s_over_w;
+  M[3]  = -w[2] * s_over_w;
+
+  M[4]  =  w[0] * s_over_w;
+  M[5]  =  c;
+  M[6]  =  w[2] * s_over_w;
+  M[7]  = -w[1] * s_over_w;
+
+  M[8]  =  w[1] * s_over_w;
+  M[9]  = -w[2] * s_over_w;
+  M[10] =  c;
+  M[11] =  w[0] * s_over_w;
+
+  M[12] =  w[2] * s_over_w;
+  M[13] =  w[1] * s_over_w;
+  M[14] = -w[0] * s_over_w;
+  M[15] =  c;
+}
+
+
+static PyObject* pyquat_expm(PyObject* self, PyObject* args) {
+  PyArrayObject* ary;
+  double dt;
+  if (PyArg_ParseTuple(args, "O!d|:big_omega", &PyArray_Type, &ary, &dt)) {
+
+    // First allocate a place to put it, and check that allocation was successful.
+    npy_intp dims[2] = {4,4};
+    PyArrayObject* mat = (PyArrayObject*)PyArray_SimpleNew(2, dims, NPY_DOUBLE);
+    if (!mat) {
+      PyErr_NoMemory();
+      return NULL;
+    }
+    double* w = (double*)ary->data;
+    double* M = (double*)mat->data;
+    expm(w, dt, M);
+
+    return PyArray_Return(mat);
+  }
+
+  return NULL;
+}
+
 
 static PyObject* pyquat_identity(PyObject* self) {
   pyquat_Quat* q =  (pyquat_Quat*) PyObject_New(pyquat_Quat, &pyquat_QuatType);

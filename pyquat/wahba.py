@@ -230,7 +230,7 @@ def davenport_eigenvalues(K = None, B = None, tr_B = None, tr_adj_K = None, tr_K
 
     if n_obs == 2:
         g3 = sqrt( 2*sqrt(d) - b)
-        g4 = sqrt(-2*sqrt(d) - b)
+        g4 = sqrt(-2*sqrt(d) - b)        
         lambda_4 =  (g3 + g4) / 2.0
         lambda_1 = -lambda_4
         lambda_3 =  (g3 - g4) / 2.0
