@@ -6,7 +6,7 @@ uniform and gaussian).
 It is also useful simply for generating random axes.
 """
 
-from pyquat._pyquat import *
+import pyquat as pq
 
 from math import sqrt, cos, sin, pi
 import numpy as np
@@ -60,6 +60,6 @@ def rand(
         axis  = axis_generator(**axis_generator_kwargs)
     if angle is None:
         angle = angle_generator()
-    return Quat.from_angle_axis(angle, *axis)
+    return pq.Quat.from_angle_axis(angle, *axis)
 
 

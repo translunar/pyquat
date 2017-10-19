@@ -5,13 +5,17 @@ from setuptools.extension import Extension
 import os
 import numpy
 
-version='0.2.0'
-c_ext = Extension('pyquat/_pyquat',
-                  ['pyquat/pyquat.c'],
-                  include_dirs  = [numpy.get_include()],
-                  define_macros = [('MAJOR_VERSION', '0'),
-                                   ('MINOR_VERSION', '2'),
-                                   ('TINY_VERSION', '0')])
+MAJOR = 0
+MINOR = 2
+TINY  = 1
+version='%d.%d.%d' % (MAJOR, MINOR, TINY)
+
+c_quat = Extension('pyquat/_pyquat',
+                   ['pyquat/pyquat.c'],
+                   include_dirs  = [numpy.get_include()],
+                   define_macros = [('MAJOR_VERSION', MAJOR),
+                                    ('MINOR_VERSION', MINOR),
+                                    ('TINY_VERSION',  TINY)])
 setup(name='pyquat',
       version=version,
       description='Python C quaternion type with attitude utility functions',
@@ -19,6 +23,7 @@ setup(name='pyquat',
       author_email='john.woods@intuitivemachines.com',
       url='http://www.intuitivemachines.com',
       include_package_data=True,
-      packages=find_packages(exclude=['ez_setup', 'examples', 'tests']),
-      ext_modules=[c_ext]
+      packages=['pyquat', 'test'],
+      ext_modules=[c_quat],
+      test_suite='test.pyquat_test_suite'
     )

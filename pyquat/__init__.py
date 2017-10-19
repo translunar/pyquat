@@ -1,4 +1,12 @@
-from pyquat._pyquat import *
+try:
+    # for in-tree build
+    from _pyquat import *
+except ImportError, e:
+    try:
+        # for out-of-tree build
+        from pyquat._pyquat import *
+    except:
+        raise ImportError("pyquat C extension does not appear to have been built properly")
 
 import math
 import numpy as np
@@ -7,6 +15,18 @@ import warnings
 
 QUAT_SMALL = 1e-8
 
+
+def fromstring(*args, **kwargs):
+    """
+    Shortcut for pyquat.Quat.from_vector(numpy.fromstring()).  If you
+    don't provide a 'sep' argument, this method will supply the
+    argument count=4 to numpy.fromstring() regardless of what you
+    provided for it.
+    """
+    if 'sep' in kwargs and kwargs['sep'] == '':
+        kwargs['count'] = 4
+        
+    return Quat(*(np.fromstring(*args, **kwargs)))
 
 def qdot(q, w, big_w = None):
     """

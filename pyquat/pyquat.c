@@ -22,6 +22,7 @@ static PyObject* pyquat_Quat_to_unit_vector(PyObject* self, PyObject* args);
 static PyObject* pyquat_Quat_to_vector(PyObject* self);
 static PyObject* pyquat_identity(PyObject* self);
 static int       pyquat_Quat_compare(PyObject* left, PyObject* right);
+static PyObject* pyquat_Quat_tobytes(PyObject* self, PyObject* args, PyObject* kwargs);
 static PyObject* pyquat_rotation_vector_to_matrix(PyObject* self, PyObject* args);
 static PyObject* pyquat_big_omega(PyObject* self, PyObject* args);
 static PyObject* pyquat_skew(PyObject* self, PyObject* args);
@@ -37,7 +38,7 @@ static PyObject * pyquat_Quat_new(PyTypeObject* type, PyObject* args) {
 
 static PyMethodDef pyquat_methods[] = {
   {"identity", (PyCFunction)pyquat_identity, METH_NOARGS, "create an identity quaternion (1.0, 0.0, 0.0, 0.0)"},
-  {"rotation_vector_to_matrix", (PyCFunction)pyquat_rotation_vector_to_matrix, METH_VARARGS, "convert a rotation vector direction to a directed-cosine matrix, skipping the quaternion"},
+  {"rotation_vector_to_matrix", (PyCFunction)pyquat_rotation_vector_to_matrix, METH_VARARGS, "convert a rotation vector directly to a directed-cosine matrix, skipping the quaternion"},
   {"big_omega", (PyCFunction)pyquat_big_omega, METH_VARARGS, "compute the 4x4 Omega matrix for some angular velocity"},
   {"skew", (PyCFunction)pyquat_skew, METH_VARARGS, "compute the 3x3 cross-product (skew symmetric) matrix for some vector"},
   {"expm", (PyCFunction)pyquat_expm, METH_VARARGS, "compute the 4x4 matrix exponential for quaternion propagation for some angular velocity and time step"},
@@ -74,6 +75,7 @@ static PyMethodDef pyquat_Quat_methods[] = {
   {"normalized", (PyCFunction)pyquat_Quat_normalize, METH_NOARGS, "normalize the quaternion"},
   {"normalized_large", (PyCFunction)pyquat_Quat_normalize_large, METH_NOARGS, "normalize the quaternion, avoiding overflow"},
   {"conjugated", (PyCFunction)pyquat_Quat_conjugate, METH_NOARGS, "copy and conjugate the quaternion"},
+  {"tobytes", (PyCFunction)pyquat_Quat_tobytes, METH_VARARGS | METH_KEYWORDS, "equivalent of numpy.ndarray.tobytes(), but for pyquat.Quat"},
   {NULL, NULL, 0, NULL}  /* Sentinel */
 };
 
@@ -624,6 +626,29 @@ static PyObject* pyquat_Quat_to_unit_vector(PyObject* self, PyObject* args) {
 }
 
 
+static PyObject* pyquat_Quat_tobytes(PyObject* self,
+                                     PyObject* args,
+                                     PyObject* kwargs)
+{
+  static char *keywords[] = { "order", NULL };
+
+  unsigned char order;
+  if (PyArg_ParseTupleAndKeywords(args, kwargs, "|b:tobytes", keywords, &order)) {
+
+    pyquat_Quat* q = (pyquat_Quat*)self;
+    PyObject* ret = PyBytes_FromStringAndSize((char*)(&(q->s)), (Py_ssize_t) sizeof(double)*4);
+    if (!ret) {
+      PyErr_NoMemory();
+      return NULL;
+    }
+
+    return ret;
+  }
+  return NULL;
+}
+
+
+
 static PyObject* pyquat_Quat_from_matrix(PyObject* type,
 					 PyObject* args)
 {
@@ -867,3 +892,5 @@ static int pyquat_Quat_compare(PyObject* left, PyObject* right) {
     return -1;
   }
 }
+
+

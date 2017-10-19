@@ -11,7 +11,7 @@ Reference:
 
 """
 
-from pyquat._pyquat import *
+import pyquat as pq
 
 import numpy as np
 from scipy import linalg
@@ -179,11 +179,11 @@ def sequential_rotation(B = None, q = None, irot = None):
     else:
         if B is None:
             if irot == 0:
-                return Quat(-q.x, q.w, -q.z, q.y)
+                return pq.Quat(-q.x, q.w, -q.z, q.y)
             elif irot == 1:
-                return Quat(-q.y, q.z, q.w, -q.x)
+                return pq.Quat(-q.y, q.z, q.w, -q.x)
             elif irot == 2:
-                return Quat(-q.x, q.w, -q.z, q.y)
+                return pq.Quat(-q.x, q.w, -q.z, q.y)
         else:
             if irot == 0:
                 B[:,1:3] *= -1.0
@@ -329,8 +329,8 @@ def esoq2(K,
         
 
     # Find the normalized quaternion (unrotated)
-    q = Quat(np.dot(z.T, e),
-             *(e * -trace_minus_lambda)).normalized_large()
+    q = pq.Quat(np.dot(z.T, e),
+                *(e * -trace_minus_lambda)).normalized_large()
         
     return q, loss
 

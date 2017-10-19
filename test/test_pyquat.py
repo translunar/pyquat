@@ -6,21 +6,13 @@ from assertions import QuaternionTest
 import math
 import unittest
 
-def slow_skew(v):
-    """
-    Generate a skew-symmetric matrix from a vector.
-    
-    Code borrowed from: https://pythonpath.wordpress.com/2012/09/04/skew-with-numpy-operations/
-
-    Kept only for testing purposes.
-    """
-    #if len(v) == 4: v = v[:3]/v[3]
-    skv = np.roll(np.roll(np.diag(v.flatten()), 1, 1), -1, 0)
-    return skv - skv.T
 
 class TestPyquat(QuaternionTest):
+    """Tests basic functionality on pyquat and the pyquat Quaternion
+    type 'Quat' written in C"""
 
     def test_mean(self):
+        """The mean quaternion is computed properly"""
         self.assertEqual(
             pq.mean(np.array([[1.0, 0.0, 0.0, 0.0],
                               [1.0, 0.0, 0.0, 0.0]]).T), 
@@ -39,6 +31,7 @@ class TestPyquat(QuaternionTest):
             delta=1e-12)
 
     def test_identity(self):
+        """The identity quaternion is properly constructed"""
         self.assert_equal_as_matrix(
             pq.identity(),
             np.identity(3))
@@ -47,6 +40,7 @@ class TestPyquat(QuaternionTest):
             np.identity(3))
 
     def test_symmetric_matrix_conversion(self):
+        """Conversion to and from a matrix is symmetric"""
         q = Quat(0.4, -0.3, 0.2, -0.1)
         q.normalize()
         self.assert_almost_equal_as_quat(
@@ -57,12 +51,14 @@ class TestPyquat(QuaternionTest):
             q.to_matrix().T)
 
     def test_symmetric_rotation_vector_conversion(self):
+        """Conversion to and from a rotation vector is symmetric"""
         q = Quat(0.4, -0.3, 0.2, -0.1)
         q.normalize()
         self.assert_almost_equal_components(q, Quat.from_rotation_vector(q.to_rotation_vector()))
         
 
     def test_symmetric_angle_axis_conversion(self):
+        """Conversion to and from an angle-axis is symmetric"""
         q = Quat(0.4, -0.3, 0.2, -0.1)
         q.normalize()
         phi = q.to_rotation_vector()
@@ -71,11 +67,16 @@ class TestPyquat(QuaternionTest):
         self.assert_almost_equal_components(q, Quat.from_angle_axis(angle, phi_hat[0], phi_hat[1], phi_hat[2]))
 
     def test_symmetric_conjugate(self):
+        """Quaternion conjugation is symmetric"""
         q = Quat(0.4, -0.3, 0.2, -0.1)
         qT = q.conjugated()
         self.assert_equal(q, qT.conjugated())
 
     def test_small_rotation_vector(self):
+        """Construction directly from a small rotation vector produces the
+        same quaternion as conversion of a rotation vector to a matrix
+        and then to a quaternion
+        """
         v = np.zeros((3,1)) * 3.0 / math.sqrt(3.0)
         q = Quat.from_rotation_vector(v)
         self.assert_equal(q, pq.identity())
@@ -83,12 +84,18 @@ class TestPyquat(QuaternionTest):
         np.testing.assert_array_equal(T, q.to_matrix())
 
     def test_large_rotation_vector(self):
+        """Construction directly from a large rotation vector produces an
+        almost-identical quaternion as conversion of a rotation vector
+        to a matrix and then to a quaternion
+        """        
         v = np.array([[3.0, 2.0, 1.0]]).T
         T1 = Quat.from_rotation_vector(v).to_matrix()
         T2 = pq.rotation_vector_to_matrix(v)
         np.testing.assert_array_almost_equal(T1, T2)
 
     def test_multiplication(self):
+        """Quaternion multiplication produces the same result as attitude
+        matrix multiplication"""
         qAB = Quat(0.4, -0.3, 0.2, -0.1)
         qAB.normalize()
         qBC = Quat(0.2, 0.3, -0.4, 0.5)
@@ -102,6 +109,7 @@ class TestPyquat(QuaternionTest):
         self.assert_almost_equal_as_matrix(qAC, tAC)
 
     def test_normalize(self):
+        """Normalization works properly for typical values """
         q0 = Quat(4.0, 3.0, 2.0, 1.0)
         q1 = Quat(4.0, 3.0, 2.0, 1.0)
         q5 = Quat(4.0, 3.0, 2.0, 1.0)
@@ -138,10 +146,7 @@ class TestPyquat(QuaternionTest):
         self.assert_equal(q3, pq.identity()) # in-place test
 
     def test_normalize_large(self):
-        """
-        Basic functionality of normalize_large is in test_normalize().
-        This method checks that overflow is avoided.
-        """
+        """Overflow is avoided in normalization"""
         q_max = 3.9545290113758423e+256
         q0 = Quat(-9.6241008572232875e+255,
                    q_max,
@@ -156,6 +161,7 @@ class TestPyquat(QuaternionTest):
         self.assert_equal(q1, q2)
 
     def test_conjugate(self):
+        """In-place and out-of-place conjugation works as expected"""
         q0 = Quat(4.0, -3.0, -2.0, -1.0)
         q1 = Quat(4.0,  3.0,  2.0,  1.0)
 
@@ -168,6 +174,8 @@ class TestPyquat(QuaternionTest):
         self.assert_equal(q0, q1)
 
     def test_skew(self):
+        """The skew matrix is produced from a 3x1 vector correctly in C
+        code"""
         w = np.array([[0.03, 0.02, 0.01]]).T
 
         # old method:
@@ -177,6 +185,8 @@ class TestPyquat(QuaternionTest):
         np.testing.assert_array_equal(wx, pq.skew(w))        
 
     def test_propagate(self):
+        """Simple propagation with small angular velocities produces the same
+        result for matrices and quaternions"""
         dt = 0.01
         q0 = Quat(1.0, 0.0, 0.0, 0.0)
         w0 = np.array([[0.0, 0.0, 1.0]]).T
@@ -198,6 +208,9 @@ class TestPyquat(QuaternionTest):
         self.assert_almost_equal_as_quat(q1, T1)
 
     def test_0_propagate(self):
+        """Quaternion propagation with a 0 angular velocity does not lead to a
+        zero division
+        """
         dt = 0.01
         q0 = Quat(1.0, 0, 0, 0)
         w0 = np.zeros((3,1))
@@ -205,6 +218,7 @@ class TestPyquat(QuaternionTest):
         self.assert_equal(q0, q1)
 
     def test_rk4_integration(self):
+        """Runge-Kutta 4 integration does not produce errors"""
         dt = 0.05
         q = Quat(1.0, 2.0, 3.0, 4.0).normalized()
         w = np.array([[0.03, 0.02, 0.01]]).T
@@ -217,6 +231,8 @@ class TestPyquat(QuaternionTest):
         q2, w2 = pq.step_rk4(qa, wa, dt*0.5, J = J, J_inv = J_inv)
 
     def test_expm(self):
+        """The closed form expression for expm from a quaternion and angular
+        velocity produces the same result as linalg.expm()"""
         B1    = 13/51.0
         dt    = 0.05
         w     = np.array([[0.03, 0.02, 0.01]]).T
@@ -229,9 +245,7 @@ class TestPyquat(QuaternionTest):
         np.testing.assert_array_almost_equal(expm1, expm2)
         
     def test_cg_integration(self):
-        """
-        CG3 and CG4 integration
-        """
+        """CG3, CG4, and RK4 integration produce reasonably similar results"""
         dt = 0.1
         q = Quat(1.0, 2.0, 3.0, 4.0).normalized()
         w = np.array([[0.03, 0.02, 0.01]]).T
@@ -263,6 +277,7 @@ class TestPyquat(QuaternionTest):
         np.testing.assert_array_equal(w, w6)
 
     def test_integration_handles_zero(self):
+        """CG3, CG4, and RK4 integration correctly hadnle an angular velocity of  0"""
         dt = 0.1
         q = pq.identity()
         w = np.zeros((3,1))
@@ -276,6 +291,7 @@ class TestPyquat(QuaternionTest):
         self.assert_equal(q, q3)
 
     def test_big_omega(self):
+        """The C big_omega() method produces the expected result"""
         w = np.array([[0.03, 0.02, 0.01]]).T
         W = pq.big_omega(w)
 
@@ -286,7 +302,18 @@ class TestPyquat(QuaternionTest):
         
         np.testing.assert_array_equal(W, W1)
 
+    def test_tobytes_and_fromstring(self):
+        """Conversion to and from strings is symmetric"""
+        q1 = pq.Quat(1.0, 2.0, 3.0, 4.0).normalized()
+        s  = q1.tobytes()
+        q2 = pq.fromstring(s, dtype=np.float64, count=4)
+        self.assert_equal(q1, q2)
 
+    def test_fromstring_with_sep(self):
+        """Conversion from a string with separator character works properly"""
+        q1 = pq.fromstring("1.0 2.0 3.0 4.0", sep=' ').normalized()
+        q2 = pq.Quat(1.0, 2.0, 3.0, 4.0).normalized()
+        self.assert_equal(q1, q2)
         
 if __name__ == '__main__':
     unittest.main()
