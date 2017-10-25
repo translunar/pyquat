@@ -314,6 +314,15 @@ class TestPyquat(QuaternionTest):
         q1 = pq.fromstring("1.0 2.0 3.0 4.0", sep=' ').normalized()
         q2 = pq.Quat(1.0, 2.0, 3.0, 4.0).normalized()
         self.assert_equal(q1, q2)
+
+    def test_copy(self):
+        """Copies the quaternion"""
+        q1 = pq.Quat(1.0, 2.0, 3.0, 4.0).normalized()
+        q2 = q1.copy()
+        q2.w = 0.0
+        q2.normalize()
+        self.assert_not_equal(q1, q2)
+        self.assert_equal(q1, pq.Quat(1.0, 2.0, 3.0, 4.0).normalized())
         
 if __name__ == '__main__':
     unittest.main()

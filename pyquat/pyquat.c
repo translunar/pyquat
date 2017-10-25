@@ -20,6 +20,7 @@ static void      to_matrix(pyquat_Quat* q, double* T);
 static PyObject* pyquat_Quat_to_matrix(PyObject* self);
 static PyObject* pyquat_Quat_to_unit_vector(PyObject* self, PyObject* args);
 static PyObject* pyquat_Quat_to_vector(PyObject* self);
+static PyObject* pyquat_Quat_copy(PyObject* self);
 static PyObject* pyquat_identity(PyObject* self);
 static int       pyquat_Quat_compare(PyObject* left, PyObject* right);
 static PyObject* pyquat_Quat_tobytes(PyObject* self, PyObject* args, PyObject* kwargs);
@@ -75,6 +76,7 @@ static PyMethodDef pyquat_Quat_methods[] = {
   {"normalized", (PyCFunction)pyquat_Quat_normalize, METH_NOARGS, "normalize the quaternion"},
   {"normalized_large", (PyCFunction)pyquat_Quat_normalize_large, METH_NOARGS, "normalize the quaternion, avoiding overflow"},
   {"conjugated", (PyCFunction)pyquat_Quat_conjugate, METH_NOARGS, "copy and conjugate the quaternion"},
+  {"copy", (PyCFunction)pyquat_Quat_copy, METH_NOARGS, "copy the quaternion"},  
   {"tobytes", (PyCFunction)pyquat_Quat_tobytes, METH_VARARGS | METH_KEYWORDS, "equivalent of numpy.ndarray.tobytes(), but for pyquat.Quat"},
   {NULL, NULL, 0, NULL}  /* Sentinel */
 };
@@ -372,6 +374,24 @@ static PyObject* pyquat_Quat_conjugate(PyObject* self) {
   result->v[0] = -q->v[0];
   result->v[1] = -q->v[1];
   result->v[2] = -q->v[2];
+
+  return (PyObject*)result;
+}
+
+
+static PyObject* pyquat_Quat_copy(PyObject* self) {
+
+  pyquat_Quat* q      = (pyquat_Quat*)(self);
+  pyquat_Quat* result = (pyquat_Quat*) PyObject_New(pyquat_Quat, &pyquat_QuatType);
+  if (result == NULL) {
+    PyErr_NoMemory();
+    return NULL;    
+  }
+
+  result->s    = q->s;
+  result->v[0] = q->v[0];
+  result->v[1] = q->v[1];
+  result->v[2] = q->v[2];
 
   return (PyObject*)result;
 }
