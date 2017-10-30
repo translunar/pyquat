@@ -47,7 +47,7 @@ class TestPyquat(QuaternionTest):
             q,
             q.to_matrix())
         self.assert_almost_equal_as_quat(
-            q.conjugate(),
+            q.conjugated(),
             q.to_matrix().T)
 
     def test_symmetric_rotation_vector_conversion(self):

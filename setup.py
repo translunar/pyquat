@@ -7,7 +7,7 @@ import numpy
 
 MAJOR = 0
 MINOR = 2
-TINY  = 2
+TINY  = 3
 version='%d.%d.%d' % (MAJOR, MINOR, TINY)
 
 c_quat = Extension('pyquat/_pyquat',

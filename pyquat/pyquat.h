@@ -20,4 +20,17 @@ typedef struct {
 } pyquat_Quat;
 
 
+#ifndef Py_CheckAlloc
+/** @brief Macro checks that a new object was properly allocated, and if not,
+ **        raises a NoMemoryError and returns from the calling function.
+ *
+ * @param[in] obj  PyObject pointer to test
+ */
+#define Py_CheckAlloc(obj)   \
+    if (!obj) {              \
+      PyErr_NoMemory();      \
+      return NULL;           \
+    }
+#endif
+
 #endif // PYQUAT_H

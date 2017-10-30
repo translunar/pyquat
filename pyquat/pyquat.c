@@ -37,6 +37,106 @@ static PyObject * pyquat_Quat_new(PyTypeObject* type, PyObject* args) {
 */
 
 
+static int not_double_array(PyArrayObject* v) {
+  if (v->descr->type_num != NPY_DOUBLE) {
+    PyErr_SetString(PyExc_ValueError,
+                    "array must be of type Float.");
+    return 1;
+  }
+  return 0;
+}
+
+
+static int not_double_vector(PyArrayObject* v) {
+  if (v->descr->type_num != NPY_DOUBLE || v->nd != 1) {
+    PyErr_SetString(PyExc_ValueError,
+                    "array must be of type Float and 1-dimensional (n).");
+    return 1;
+  }
+  return 0;
+}
+
+
+static int not_double_matrix(PyArrayObject* m) {
+  if (m->descr->type_num != NPY_DOUBLE || m->nd != 2) {
+    PyErr_SetString(PyExc_ValueError,
+                    "array must be of type Float and 2-dimensional (n x m).");
+    return 1;
+  }
+  return 0;
+}
+
+
+/** @brief Check that v is 3 in length.
+ */
+static int not_length_3(PyArrayObject* v) {
+  if (v->dimensions[0] != 3) {
+    PyErr_SetString(PyExc_ValueError,
+                    "array must be length 3");
+    return 1;
+  }
+  return 0;
+}
+
+/** @brief Check that v is 2 in length.
+ */
+static int not_length_2(PyArrayObject* v) {
+  if (v->dimensions[0] != 2) {
+    PyErr_SetString(PyExc_ValueError,
+                    "array must be length 2");
+    return 1;
+  }
+  return 0;
+}
+
+/** @brief Check that m is exactly 3x3. Assumes you've already
+ **        checked that it is a matrix.
+ */
+static int not_3x3(PyArrayObject* m) {
+  if (m->dimensions[0] != 3 || m->dimensions[1] != 3) {
+    PyErr_SetString(PyExc_ValueError,
+                    "array must be 3x3");
+    return 1;
+  }
+  return 0;
+}
+
+
+static int not_3x1(PyArrayObject* m) {
+  if (m->dimensions[0] != 3 || m->dimensions[1] != 1) {
+    PyErr_SetString(PyExc_ValueError,
+                    "array must be 3x1");
+    return 1;
+  }
+  return 0;
+}
+
+
+static int not_double_matrix_or_vector(PyArrayObject* m) {
+  if (m->descr->type_num != NPY_DOUBLE || m->nd > 2) {
+    PyErr_SetString(PyExc_ValueError,
+                    "array must be of type Float and 1- or 2-dimensional (n or n x m).");
+    return 1;
+  }
+  return 0;
+}
+
+
+static int not_double_nx1_or_length_n(PyArrayObject* m, int n) {
+  if (m->descr->type_num != NPY_DOUBLE) {
+    PyErr_SetString(PyExc_ValueError,
+                    "array must be of type Float");
+    return 1;
+  } else if (m->dimensions[0] != n &&
+             (m->nd == 1 || (m->nd == 2 && m->dimensions[1] != 1))) {
+    PyErr_SetString(PyExc_ValueError,
+                    "array must be a vector of length n or matrix of shape nx1");
+    return 1;
+  }
+  return 0;
+}
+
+
 static PyMethodDef pyquat_methods[] = {
   {"identity", (PyCFunction)pyquat_identity, METH_NOARGS, "create an identity quaternion (1.0, 0.0, 0.0, 0.0)"},
   {"rotation_vector_to_matrix", (PyCFunction)pyquat_rotation_vector_to_matrix, METH_VARARGS, "convert a rotation vector directly to a directed-cosine matrix, skipping the quaternion"},
@@ -365,10 +465,7 @@ static PyObject* pyquat_Quat_conjugate(PyObject* self) {
 
   pyquat_Quat* q      = (pyquat_Quat*)(self);
   pyquat_Quat* result = (pyquat_Quat*) PyObject_New(pyquat_Quat, &pyquat_QuatType);
-  if (result == NULL) {
-    PyErr_NoMemory();
-    return NULL;    
-  }
+  Py_CheckAlloc(result);
 
   result->s    = q->s;
   result->v[0] = -q->v[0];
@@ -383,10 +480,7 @@ static PyObject* pyquat_Quat_copy(PyObject* self) {
 
   pyquat_Quat* q      = (pyquat_Quat*)(self);
   pyquat_Quat* result = (pyquat_Quat*) PyObject_New(pyquat_Quat, &pyquat_QuatType);
-  if (result == NULL) {
-    PyErr_NoMemory();
-    return NULL;    
-  }
+  Py_CheckAlloc(result);
 
   result->s    = q->s;
   result->v[0] = q->v[0];
@@ -410,10 +504,7 @@ static PyObject* pyquat_Quat_from_angle_axis(PyObject* type,
                                    &phi, &x, &y, &z, &theta))
   {
     pyquat_Quat* q = (pyquat_Quat*) PyObject_New(pyquat_Quat, &pyquat_QuatType);
-    if (!q) {
-      PyErr_NoMemory();
-      return NULL;
-    }
+    Py_CheckAlloc(q);
 
     if (kwargs) {
       PyObject* theta_str = PyString_FromString(keywords[4]);
@@ -461,12 +552,12 @@ static PyObject* pyquat_Quat_from_rotation_vector(PyObject* type,
 {
   PyArrayObject* ary;
   if (PyArg_ParseTuple(args, "O!|:from_rotation_vector", &PyArray_Type, &ary)) {
+    if (not_double_nx1_or_length_n(ary, 3)) return NULL;
+    PyArrayObject* v_ary = PyArray_GETCONTIGUOUS(ary);
+    
     pyquat_Quat* q = (pyquat_Quat*) PyObject_New(pyquat_Quat, &pyquat_QuatType);
-    if (!q) {
-      PyErr_NoMemory();
-      return NULL;
-    }
-    from_rotation_vector(q, (double*)ary->data);
+    Py_CheckAlloc(q);
+    from_rotation_vector(q, (double*)v_ary->data);
         
     return (PyObject*)q;
   }
@@ -483,12 +574,7 @@ static PyObject* pyquat_Quat_to_rotation_vector(PyObject* self) {
   double vec_mag = 2.0 * acos(q->s);
   double a       = sin(vec_mag / 2.0);
   PyArrayObject* ary  = (PyArrayObject*)PyArray_SimpleNew(2, dims, NPY_DOUBLE);
-
-  // Check that allocation was successful
-  if (ary == NULL) {
-    PyErr_NoMemory();
-    return NULL;
-  }
+  Py_CheckAlloc(ary);
 
   double* vec    = (double*)ary->data;
   
@@ -500,7 +586,7 @@ static PyObject* pyquat_Quat_to_rotation_vector(PyObject* self) {
     vec[0] = vec[1] = vec[2] = 0.0;
   }
 
-  return PyArray_Return(ary);
+  return (PyObject*)ary;
 }
 
 
@@ -563,17 +649,12 @@ static PyObject* pyquat_Quat_to_matrix(PyObject* self) {
   pyquat_Quat* q = (pyquat_Quat*)(self);
 
   PyArrayObject* ary  = (PyArrayObject*)PyArray_SimpleNew(2, dims, NPY_DOUBLE);
-  // Check that allocation was successful
-  if (ary == NULL) {
-    PyErr_NoMemory();
-    return NULL;
-  }
+  Py_CheckAlloc(ary);
 
   double* T = (double*)ary->data;
   to_matrix(q, T);
 
-
-  return PyArray_Return(ary);
+  return (PyObject*)ary;
 }
 
 
@@ -583,11 +664,7 @@ static PyObject* pyquat_Quat_to_vector(PyObject* self) {
   pyquat_Quat* q = (pyquat_Quat*)self;
 
   PyArrayObject* ary  = (PyArrayObject*)PyArray_SimpleNew(2, dims, NPY_DOUBLE);
-  // Check that allocation was successful
-  if (ary == NULL) {
-    PyErr_NoMemory();
-    return NULL;
-  }
+  Py_CheckAlloc(ary);
 
   double* vec = (double*)ary->data;
 
@@ -596,7 +673,7 @@ static PyObject* pyquat_Quat_to_vector(PyObject* self) {
   vec[2] = q->v[1];
   vec[3] = q->v[2];
 
-  return PyArray_Return(ary);
+  return ary;
 }
 
 
@@ -616,11 +693,7 @@ static PyObject* pyquat_Quat_to_unit_vector(PyObject* self, PyObject* args) {
 
 
   PyArrayObject* ary = (PyArrayObject*)PyArray_SimpleNew(2, dims, NPY_DOUBLE);
-  // Check that allocation was successful
-  if (ary == NULL) {
-    PyErr_NoMemory();
-    return NULL;
-  }
+  Py_CheckAlloc(ary);
 
   // Let's suppose we're multiplying q.to_matrix() by (1,0,0), or x-hat.
   // That's equivalent to the first column of q.to_matrix().
@@ -642,7 +715,7 @@ static PyObject* pyquat_Quat_to_unit_vector(PyObject* self, PyObject* args) {
     // return anyway
   }
   
-  return PyArray_Return(ary);
+  return ary;
 }
 
 
@@ -657,10 +730,7 @@ static PyObject* pyquat_Quat_tobytes(PyObject* self,
 
     pyquat_Quat* q = (pyquat_Quat*)self;
     PyObject* ret = PyBytes_FromStringAndSize((char*)(&(q->s)), (Py_ssize_t) sizeof(double)*4);
-    if (!ret) {
-      PyErr_NoMemory();
-      return NULL;
-    }
+    Py_CheckAlloc(ret);
 
     return ret;
   }
@@ -674,12 +744,12 @@ static PyObject* pyquat_Quat_from_matrix(PyObject* type,
 {
   PyArrayObject* ary;
   if (PyArg_ParseTuple(args, "O!|:from_matrix", &PyArray_Type, &ary)) {
+    if (not_double_matrix(ary) || not_3x3(ary)) return NULL;
+    PyArrayObject* mat = PyArray_GETCONTIGUOUS(ary);
+    
     pyquat_Quat* q = (pyquat_Quat*) PyObject_New(pyquat_Quat, &pyquat_QuatType);
-    if (!q) {
-      PyErr_NoMemory();
-      return NULL;
-    }
-    from_matrix(q, (double*)ary->data);
+    Py_CheckAlloc(q);
+    from_matrix(q, (double*)mat->data);
         
     return (PyObject*)q;
   }
@@ -692,17 +762,17 @@ static PyObject* pyquat_rotation_vector_to_matrix(PyObject* self, PyObject* args
   PyArrayObject* ary;
   if (PyArg_ParseTuple(args, "O!|:rotation_vector_to_matrix", &PyArray_Type, &ary)) {
 
+    if (not_double_nx1_or_length_n(ary, 3)) return NULL;
+    PyArrayObject* vec = PyArray_GETCONTIGUOUS(ary);
+    
     // First allocate a place to put it, and check that allocation was successful.
     npy_intp dims[2] = {3,3};
     PyArrayObject* mat = (PyArrayObject*)PyArray_SimpleNew(2, dims, NPY_DOUBLE);
-    if (!mat) {
-      PyErr_NoMemory();
-      return NULL;
-    }
+    Py_CheckAlloc(mat);
     double* T = (double*)mat->data;
     
     
-    double* v    = (double*)ary->data;
+    double* v    = (double*)vec->data;
     double v_mag = sqrt(v[0]*v[0] + v[1]*v[1] + v[2]*v[2]);
     double c     = cos(v_mag);
     double s     = sin(v_mag);
@@ -726,7 +796,7 @@ static PyObject* pyquat_rotation_vector_to_matrix(PyObject* self, PyObject* args
       T[8]  = c + vu[2]*vu[2] * (1.0 - c);
     }
 
-    return PyArray_Return(mat);
+    return mat;
   }
 
   return NULL;
@@ -751,16 +821,16 @@ static void skew(double* v, double* vx) {
 static PyObject* pyquat_skew(PyObject* self, PyObject* args) {
   PyArrayObject* ary;
   if (PyArg_ParseTuple(args, "O!|:skew", &PyArray_Type, &ary)) {
+    if (not_double_nx1_or_length_n(ary, 3)) return NULL;
+    PyArrayObject* vec = PyArray_GETCONTIGUOUS(ary);
 
     // First allocate a place to put it, and check that allocation was successful.
     npy_intp dims[2] = {3,3};
     PyArrayObject* mat = (PyArrayObject*)PyArray_SimpleNew(2, dims, NPY_DOUBLE);
-    if (!mat) {
-      PyErr_NoMemory();
-      return NULL;
-    }
+    Py_CheckAlloc(mat);
+
     double* vx   = (double*)mat->data;
-    double* v    = (double*)ary->data;
+    double* v    = (double*)vec->data;
     skew(v, vx);
 
     return PyArray_Return(mat);
@@ -797,16 +867,15 @@ static void big_omega(double* w, double* W) {
 static PyObject* pyquat_big_omega(PyObject* self, PyObject* args) {
   PyArrayObject* ary;
   if (PyArg_ParseTuple(args, "O!|:big_omega", &PyArray_Type, &ary)) {
+    if (not_double_nx1_or_length_n(ary, 3)) return NULL;
+    PyArrayObject* vec = PyArray_GETCONTIGUOUS(ary);
 
     // First allocate a place to put it, and check that allocation was successful.
     npy_intp dims[2] = {4,4};
     PyArrayObject* mat = (PyArrayObject*)PyArray_SimpleNew(2, dims, NPY_DOUBLE);
-    if (!mat) {
-      PyErr_NoMemory();
-      return NULL;
-    }
+    Py_CheckAlloc(mat);
     
-    double* w = (double*)ary->data;    
+    double* w = (double*)vec->data;
     double* W = (double*)mat->data;
     big_omega(w, W);
 
@@ -855,19 +924,19 @@ static PyObject* pyquat_expm(PyObject* self, PyObject* args) {
   PyArrayObject* ary;
   double dt;
   if (PyArg_ParseTuple(args, "O!d|:big_omega", &PyArray_Type, &ary, &dt)) {
+    if (not_double_nx1_or_length_n(ary, 3)) return NULL;
+    PyArrayObject* vec = PyArray_GETCONTIGUOUS(ary);
 
     // First allocate a place to put it, and check that allocation was successful.
     npy_intp dims[2] = {4,4};
     PyArrayObject* mat = (PyArrayObject*)PyArray_SimpleNew(2, dims, NPY_DOUBLE);
-    if (!mat) {
-      PyErr_NoMemory();
-      return NULL;
-    }
-    double* w = (double*)ary->data;
+    Py_CheckAlloc(mat);
+
+    double* w = (double*)vec->data;
     double* M = (double*)mat->data;
     expm(w, dt, M);
 
-    return PyArray_Return(mat);
+    return mat;
   }
 
   return NULL;
