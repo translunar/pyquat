@@ -400,7 +400,17 @@ class TestPyquat(QuaternionTest):
         mixed = q1.slerp(q2, 0.5, lerp_threshold = 0.9)
         self.assert_equal(lerp, mixed)
         self.assert_not_equal(lerp, slerp)
-        
+    
+    def test_transform(self):
+        """Transformation of a vector by a quaternion is equivalent to
+        transformation of a vector by a matrix"""
+        q = pq.Quat(1.0, 2.0, 3.0, 4.0).normalized()
+        T = q.to_matrix()
+        v_in  = np.array([0.1, 0.2, -0.3])
+        Tv    = T.dot(v_in)
+        qvq   = pq.transform(q, v_in)
+        np.testing.assert_almost_equal(Tv, qvq, decimal=16)
+         
         
 if __name__ == '__main__':
     unittest.main()
