@@ -323,7 +323,7 @@ static PyObject * pyquat_Quat_mul(PyObject* self, PyObject* arg) {
 
   // Expects the one argument to be a pyquat_Quat
   if (!PyObject_IsInstance(arg, (PyObject*)&pyquat_QuatType)) {
-    PyErr_SetString(PyExc_IOError, "expected quaternion");
+    PyErr_SetString(PyExc_ValueError, "expected quaternion");
     return NULL;
   }
 
