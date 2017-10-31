@@ -323,6 +323,84 @@ class TestPyquat(QuaternionTest):
         q2.normalize()
         self.assert_not_equal(q1, q2)
         self.assert_equal(q1, pq.Quat(1.0, 2.0, 3.0, 4.0).normalized())
+
+    def test_dot(self):
+        """Dot product of two quaternions should be the dot product of their
+        respective to_vector() methods"""
+        q1 = pq.Quat(1.0, 0.0, 0.0, 0.0)
+        q2 = pq.Quat(1.0, 1.0, 0.0, 0.0).normalized()
+        self.assertEqual(q1.dot(q2),
+                         q1.to_vector().reshape(4).dot(q2.to_vector().reshape(4)))
+        
+    def test_lerp(self):
+        """Linear interpolation works as expected for a 45-degree angle"""
+        q1 = pq.Quat(1.0, 0.0, 0.0, 0.0)
+        q2 = pq.Quat(1.0, 1.0, 0.0, 0.0).normalized()
+
+        # Check half-way point equidistant from inputs
+        q3 = q1.lerp(q2, 0.5)
+        self.assertAlmostEqual(q3.dot(q1), q3.dot(q2))
+
+        # Check that each input is 22.5 degrees from the output
+        q3n = q3.normalized()
+        self.assertAlmostEqual(math.acos(q3n.dot(q2)) * 180.0 / math.pi, 22.5)
+        self.assertAlmostEqual(math.acos(q3n.dot(q1)) * 180.0 / math.pi, 22.5)
+
+        # Check that q1 lerped with itself gives itself.
+        q4 = q1.lerp(q1.copy(), 1.0)
+        self.assert_equal(q1, q4)
+        q4 = q1.lerp(q1.copy(), 0.0)
+        self.assert_equal(q1, q4)
+        q4 = q1.lerp(q1.copy(), 0.5)
+        self.assert_equal(q1, q4)
+
+        # Check end-ranges of the t parameter
+        q5 = q1.lerp(q2, 0.0)
+        self.assert_equal(q5, q1)
+
+        q6 = q1.lerp(q2, 1.0)
+        self.assert_equal(q6, q2)
+
+    def test_slerp(self):
+        """Spherical linear interpolation works as expected for a 45-degree angle"""
+        q1 = pq.Quat(1.0, 0.0, 0.0, 0.0)
+        q2 = pq.Quat(1.0, 1.0, 0.0, 0.0).normalized()
+
+        # Check half-way point equidistant from inputs
+        q3 = q1.slerp(q2, 0.5)
+        self.assertAlmostEqual(q3.dot(q1), q3.dot(q2))
+
+        # Check that each input is 22.5 degrees from the output
+        self.assertAlmostEqual(math.acos(q3.dot(q2)) * 180.0 / math.pi, 22.5)
+        self.assertAlmostEqual(math.acos(q3.dot(q1)) * 180.0 / math.pi, 22.5)
+
+        # Check that q1 lerped with itself gives itself.
+        q4 = q1.slerp(q1.copy(), 1.0)
+        self.assert_equal(q1, q4)
+        q4 = q1.slerp(q1.copy(), 0.0)
+        self.assert_equal(q1, q4)
+        q4 = q1.slerp(q1.copy(), 0.5)
+        self.assert_equal(q1, q4)
+
+        # Check end-ranges of the t parameter
+        q5 = q1.slerp(q2, 0.0)
+        self.assert_equal(q5, q1)
+
+        q6 = q1.slerp(q2, 1.0)
+        self.assert_equal(q6, q2)
+
+    def test_slerp_with_lerp(self):
+        """slerp should resort to lerp when a lerp_threshold is set"""
+        q1  = pq.Quat(1.0, 0.0, 0.0, 0.0)
+        q2  = pq.Quat(1.0, 0.1, 0.0, 0.0).normalized()
+        dot = q1.dot(q2)
+
+        lerp  = q1.lerp(q2, 0.5).normalized()
+        slerp = q1.slerp(q2, 0.5)
+        mixed = q1.slerp(q2, 0.5, lerp_threshold = 0.9)
+        self.assert_equal(lerp, mixed)
+        self.assert_not_equal(lerp, slerp)
+        
         
 if __name__ == '__main__':
     unittest.main()

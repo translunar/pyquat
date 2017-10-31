@@ -364,9 +364,3 @@ def step_cg4(
 
     return (Quat(*q_next), w_next)
 
-
-
-
-
-
-    

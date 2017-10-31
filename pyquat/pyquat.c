@@ -28,6 +28,9 @@ static PyObject* pyquat_rotation_vector_to_matrix(PyObject* self, PyObject* args
 static PyObject* pyquat_big_omega(PyObject* self, PyObject* args);
 static PyObject* pyquat_skew(PyObject* self, PyObject* args);
 static PyObject* pyquat_expm(PyObject* self, PyObject* args);
+static PyObject* pyquat_Quat_lerp(PyObject* self, PyObject* args);
+static PyObject* pyquat_Quat_slerp(PyObject* self, PyObject* args, PyObject* kwargs);
+static PyObject* pyquat_Quat_dot(PyObject* self, PyObject* args);
 
 /*
 static PyObject * pyquat_Quat_new(PyTypeObject* type, PyObject* args) {
@@ -178,6 +181,9 @@ static PyMethodDef pyquat_Quat_methods[] = {
   {"conjugated", (PyCFunction)pyquat_Quat_conjugate, METH_NOARGS, "copy and conjugate the quaternion"},
   {"copy", (PyCFunction)pyquat_Quat_copy, METH_NOARGS, "copy the quaternion"},  
   {"tobytes", (PyCFunction)pyquat_Quat_tobytes, METH_VARARGS | METH_KEYWORDS, "equivalent of numpy.ndarray.tobytes(), but for pyquat.Quat"},
+  {"lerp", (PyCFunction)pyquat_Quat_lerp, METH_VARARGS, "linear interpolation between two quaternions"},
+  {"slerp", (PyCFunction)pyquat_Quat_slerp, METH_VARARGS | METH_KEYWORDS, "spherical linear interpolation or linear interpolation between two quaternions depending on whether the dot product exceeds the parameter 'lerp_threshold'"},
+  {"dot", (PyCFunction)pyquat_Quat_dot, METH_VARARGS, "dot product of two quaternions as if they are 4D vectors"},
   {NULL, NULL, 0, NULL}  /* Sentinel */
 };
 
@@ -378,7 +384,6 @@ static void normalize_large(pyquat_Quat* result, pyquat_Quat* q) {
     result->v[1] /= scaled_mag;
     result->v[2] /= scaled_mag;
   } else { // can't normalize, so just use identity
-    printf("scaled_mag = %f, q_max = %f\n", scaled_mag, q_max);
     result->s    = 1.0;
     result->v[0] = result->v[1] = result->v[2] = 0.0;
   }
@@ -983,3 +988,204 @@ static int pyquat_Quat_compare(PyObject* left, PyObject* right) {
 }
 
 
+/** @brief Compute the dot product between two quaternions as if they
+ **        were 4-vectors.
+ *
+ * @detail This function does not perform any checks to see if the
+ *         quaternions are allocated. That should be done before
+ *         calling it.
+ *
+ * @param[in] p  pointer to the first operand
+ * @param[in] q  pointer to the second operand
+ *
+ * @returns the dot product, a double.
+ */
+static double QdotQ(pyquat_Quat* p, pyquat_Quat* q) {
+  return p->s*q->s + p->v[0]*q->v[0] + p->v[1]*q->v[1] + p->v[2]*q->v[2];
+}
+
+
+/** @brief Linear interpolation of two quaternions with no safety
+ **        checks.
+ *
+ * @param[in]     q0      pointer to the first operand
+ * @param[in]     q1      pointer to the second operand
+ * @param[in]     t       interpolation coefficient between [0.0, 1.0]
+ * @param[in,out] result  pre-allocated result of the computation
+ *
+ */
+static void lerp(pyquat_Quat* q0, pyquat_Quat* q1, double t, pyquat_Quat* result) {
+  result->s    = q0->s    + t*(q1->s    - q0->s   );
+  result->v[0] = q0->v[0] + t*(q1->v[0] - q0->v[0]);
+  result->v[1] = q0->v[1] + t*(q1->v[1] - q0->v[1]);
+  result->v[2] = q0->v[2] + t*(q1->v[2] - q0->v[2]);
+}
+
+
+/** @brief Spherical linear interpolation of two quaternions with no
+ **        safety checks.
+ *
+ * @param[in]     q0      pointer to the first operand
+ * @param[in]     q1      pointer to the second operand
+ * @param[in]     t       interpolation coefficient between [0.0, 1.0]
+ * @param[in]     dot     dot product of q0 and q1
+ * @param[in,out] result  pre-allocated result of the computation
+ *
+ */
+static void slerp(pyquat_Quat* q0,
+                  pyquat_Quat* q1,
+                  double       t,
+                  double       dot,
+                  pyquat_Quat* result)
+{
+  double theta_0 = acos(dot);   // angle between input vectors
+  double theta   = theta_0 * t; // angle between q0 and result
+  double st      = sin(theta);
+  double ct      = cos(theta);
+
+  pyquat_Quat q2;
+  q2.s    = q1->s    - q0->s    * dot;
+  q2.v[0] = q1->v[0] - q0->v[0] * dot;
+  q2.v[1] = q1->v[1] - q0->v[1] * dot;
+  q2.v[2] = q1->v[2] - q0->v[2] * dot;
+  normalize(&q2, &q2); // q0, q2 are now an orthonormal basis
+  
+  result->s    = q0->s    * ct   +   q2.s    * st;
+  result->v[0] = q0->v[0] * ct   +   q2.v[0] * st;
+  result->v[1] = q0->v[1] * ct   +   q2.v[1] * st;
+  result->v[2] = q0->v[2] * ct   +   q2.v[2] * st;
+}
+
+
+/** @brief Spherical linear interpolation of two quaternions, or linear
+ **        interpolation beneath a certain threshold; otherwise, no safety
+ **        checks.
+ *
+ * @param[in]     q0              pointer to the first operand
+ * @param[in]     q1              pointer to the second operand
+ * @param[in]     t               interpolation coefficient between [0.0, 1.0]
+ * @param[in]     lerp_threshold  dot product threshold at/beneath which 
+ *                                we should use lerp+normalize instead of 
+ *                                slerp
+ * @param[in,out] result          pre-allocated result of the computation
+ *
+ */
+static void slerp_or_lerp(pyquat_Quat* q0,
+                          pyquat_Quat* q1,
+                          double       t,
+                          double       lerp_threshold,
+                          pyquat_Quat* result)
+{
+  // Compute the dot product between the two quaternions as 4D vectors.
+  double dot = QdotQ(q0, q1);
+  
+  if (lerp_threshold < 1.0 && fabs(dot) > lerp_threshold) {
+    // Angle between the quaternions is too small, so we might as well just use LERP.
+    lerp(q0, q1, t, result);
+    normalize(result, result);
+  } else if (dot < 0) {
+    // Negative dot product means quaternions have opposite handedness.
+    pyquat_Quat nq1;
+    nq1.s    = -q1->s;
+    nq1.v[0] = -q1->v[0];
+    nq1.v[1] = -q1->v[1];
+    nq1.v[2] = -q1->v[2];
+
+    if (dot < -1) dot = 1.0;
+    slerp(q0, &nq1, t, dot, result);
+  } else {
+    // Proceed with slerp
+    if (dot > 1) dot = 1.0; // clamp
+    slerp(q0, q1, t, dot, result);
+  }
+
+}
+
+
+static PyObject* pyquat_Quat_lerp(PyObject* self, PyObject* args) {
+  pyquat_Quat* q0 = (pyquat_Quat*)self;
+  pyquat_Quat* q1;
+  double       t;
+  if (PyArg_ParseTuple(args, "O!d:lerp",
+                       &pyquat_QuatType, &q1,
+                       &t)) {
+
+    if (t <= 0 || t >= 1) {
+      if (t == 0) {
+        return pyquat_Quat_copy(q0);
+      } else if (t == 1) {
+        return pyquat_Quat_copy(q1);
+      }
+      PyErr_SetString(PyExc_ValueError, "expected t in range [0,1]");
+      return NULL;
+    }    
+
+    // allocate result quaternion
+    pyquat_Quat* q = (pyquat_Quat*)PyObject_New(pyquat_Quat, &pyquat_QuatType);
+    Py_CheckAlloc(q);
+
+    // Perform linear interpolation.
+    lerp(q0, q1, t, q);
+
+    // Return the result.
+    return (PyObject*)q;
+  }
+
+  return NULL;
+}
+
+
+static PyObject* pyquat_Quat_slerp(PyObject* self,
+                                   PyObject* args,
+                                   PyObject* kwargs) {
+  pyquat_Quat* q0 = (pyquat_Quat*)self;
+  pyquat_Quat* q1;
+  double       t;
+  double       lerp_threshold = 1.0;
+
+
+  static char* keywords[] = {"rhs", "t", "lerp_threshold", NULL};
+  
+  if (PyArg_ParseTupleAndKeywords(args, kwargs, "O!d|d:slerp", keywords,
+                                  &pyquat_QuatType, &q1,
+                                  &t,
+                                  &lerp_threshold)) {
+    if (t <= 0 || t >= 1) {
+      if (t == 0) {
+        return pyquat_Quat_copy(q0);
+      } else if (t == 1) {
+        return pyquat_Quat_copy(q1);
+      }
+      PyErr_SetString(PyExc_ValueError, "expected t in range [0,1]");
+      return NULL;
+    }
+
+    // allocate result quaternion
+    pyquat_Quat* q = (pyquat_Quat*)PyObject_New(pyquat_Quat, &pyquat_QuatType);
+    Py_CheckAlloc(q);
+
+    // Perform spherical linear interpolation or linear interpolation according
+    // to lerp_threshold.
+    slerp_or_lerp(q0, q1, t, lerp_threshold, q);
+
+    // Return the result.
+    return (PyObject*)q;
+  }
+  
+  return NULL;
+}
+
+
+static PyObject* pyquat_Quat_dot(PyObject* self, PyObject* args) {
+  pyquat_Quat* q0 = (pyquat_Quat*)self;
+  pyquat_Quat* q1;
+  double       t;
+  if (PyArg_ParseTuple(args, "O!:dot",
+                       &pyquat_QuatType, &q1)) {
+
+    // Compute dot product.
+    return PyFloat_FromDouble(QdotQ(q0, q1));
+  }
+
+  return NULL;
+}

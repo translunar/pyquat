@@ -33,4 +33,5 @@ typedef struct {
     }
 #endif
 
+
 #endif // PYQUAT_H
