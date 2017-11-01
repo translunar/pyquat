@@ -1,5 +1,6 @@
 import unittest
-import test_pyquat, test_random, test_wahba
+import test_pyquat, test_random
+import test_wahba_esoq
 
 def pyquat_test_suite():
     """
@@ -9,8 +10,8 @@ def pyquat_test_suite():
     loader = unittest.TestLoader()
     suite  = unittest.TestSuite()
     suite.addTests(loader.loadTestsFromModule(test_pyquat))
-    suite.addTests(loader.loadTestsFromModule(test_wahba))
     suite.addTests(loader.loadTestsFromModule(test_random))
+    suite.addTests(loader.loadTestsFromModule(test_wahba_esoq))
 
     return suite
 

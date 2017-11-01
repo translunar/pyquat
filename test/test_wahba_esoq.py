@@ -2,17 +2,17 @@ import numpy as np
 from scipy import linalg
 import pyquat as pq
 from pyquat import Quat
-import pyquat.wahba as pqw
+import pyquat.wahba.esoq as pq_esoq
 from assertions import QuaternionTest
 import math
 import unittest
         
-class TestWahba(QuaternionTest):
+class TestWahbaESOQ(QuaternionTest):
     def test_attitude_profile_matrix_from_quaternion(self):
         """attitude_profile_matrix() doesn't raise errors when given a quaternion measurement and a covariance"""
         q   = pq.identity()
         cov = np.identity(3)
-        B   = pqw.attitude_profile_matrix(q, cov)
+        B   = pq_esoq.attitude_profile_matrix(q, cov)
         # Needs actual test here
 
     def test_attitude_profile_matrix(self):
@@ -23,7 +23,7 @@ class TestWahba(QuaternionTest):
         obs = np.array([[0.0, 0.0],
                         [1.0, 0.0],
                         [0.0, 1.0]])
-        B = pqw.attitude_profile_matrix(obs = obs, ref = ref)
+        B = pq_esoq.attitude_profile_matrix(obs = obs, ref = ref)
         # Needs actual test here
 
 
@@ -31,10 +31,10 @@ class TestWahba(QuaternionTest):
         """The Davenport matrix produced by a quaternion is the same as that produced by attitude_profile_matrix() called on that same quaternion"""
         q   = pq.identity()
         cov = np.identity(3)
-        K1  = pqw.davenport_matrix(q = q, cov = cov)
+        K1  = pq_esoq.davenport_matrix(q = q, cov = cov)
 
-        B   = pqw.attitude_profile_matrix(q, cov)
-        K2  = pqw.davenport_matrix(B)
+        B   = pq_esoq.attitude_profile_matrix(q, cov)
+        K2  = pq_esoq.davenport_matrix(B)
         np.testing.assert_array_equal(K1, K2)
 
     def test_davenport_matrix(self):
@@ -45,8 +45,8 @@ class TestWahba(QuaternionTest):
         obs = np.array([[0.0, 0.0],
                         [1.0, 0.0],
                         [0.0, 1.0]])
-        B = pqw.attitude_profile_matrix(obs = obs, ref = ref)
-        K = pqw.davenport_matrix(B)
+        B = pq_esoq.attitude_profile_matrix(obs = obs, ref = ref)
+        K = pq_esoq.davenport_matrix(B)
         self.assertEqual(K.shape[0], 4)
         self.assertEqual(K.shape[1], 4)
 
@@ -58,10 +58,10 @@ class TestWahba(QuaternionTest):
         obs = np.array([[0.0, 0.0],
                         [1.0, 0.0],
                         [0.0, 1.0]])
-        B = pqw.attitude_profile_matrix(obs = obs, ref = ref)
-        irot = pqw.sequential_rotation(B)
-        K = pqw.davenport_matrix(B)
-        l = pqw.davenport_eigenvalues(K, B, n_obs = 2)
+        B = pq_esoq.attitude_profile_matrix(obs = obs, ref = ref)
+        irot = pq_esoq.sequential_rotation(B)
+        K = pq_esoq.davenport_matrix(B)
+        l = pq_esoq.davenport_eigenvalues(K, B, n_obs = 2)
         self.assertLessEqual(-1.0 - 1e-6, l[3])
         self.assertLessEqual(l[3], l[2])
         self.assertLessEqual(l[2], l[1])
@@ -74,7 +74,7 @@ class TestWahba(QuaternionTest):
                       [0, 3, 0, 0],
                       [2, 0, -1, -2],
                       [-2, 0, -2, -1]])
-        ta1 = pqw.trace_adj(K)
+        ta1 = pq_esoq.trace_adj(K)
         ta2 = np.matrix(K).getH().trace()[0,0]
         self.assertEqual(ta1, ta2)
 

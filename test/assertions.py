@@ -1,7 +1,7 @@
 import unittest
 import numpy as np
 import pyquat as pq
-import pyquat.wahba as pqw
+import pyquat.wahba.esoq as pq_esoq
 from pyquat import Quat
 
 class QuaternionTest(unittest.TestCase):
@@ -41,11 +41,11 @@ class QuaternionTest(unittest.TestCase):
         """
 
         # First, compute the quaternion mapping the ref frame to the obs frame.
-        B = pqw.attitude_profile_matrix(obs = obs, ref = ref)
-        irot = pqw.sequential_rotation(B)
-        K = pqw.davenport_matrix(B)
-        q, loss = pqw.esoq2(K, n_obs = 2)
-        q_ref_to_obs = pqw.sequential_rotation(q = q, irot = irot)
+        B = pq_esoq.attitude_profile_matrix(obs = obs, ref = ref)
+        irot = pq_esoq.sequential_rotation(B)
+        K = pq_esoq.davenport_matrix(B)
+        q, loss = pq_esoq.esoq2(K, n_obs = 2)
+        q_ref_to_obs = pq_esoq.sequential_rotation(q = q, irot = irot)
 
         T_ref_to_obs = q_ref_to_obs.to_matrix()
 
