@@ -33,13 +33,6 @@ static PyObject* pyquat_Quat_slerp(PyObject* self, PyObject* args, PyObject* kwa
 static PyObject* pyquat_Quat_dot(PyObject* self, PyObject* args);
 static PyObject* pyquat_Quat_rotate(PyObject* self, PyObject* args);
 
-/*
-static PyObject * pyquat_Quat_new(PyTypeObject* type, PyObject* args) {
-  pyquat_Quat* self = (pyquat_Quat *)type->tp_alloc(type, 0);  
-  return (PyObject *)(self);
-}
-*/
-
 
 static int not_double_array(PyArrayObject* v) {
   if (v->descr->type_num != NPY_DOUBLE) {
@@ -395,6 +388,39 @@ inline static void otimes_conj_vector_out(pyquat_Quat* p, pyquat_Quat* q, double
   result[0] = -p->s * q->v[0] + q->s * p->v[0] + p->v[1] * q->v[2] - p->v[2] * q->v[1];
   result[1] = -p->s * q->v[1] + q->s * p->v[1] + p->v[2] * q->v[0] - p->v[0] * q->v[2];
   result[2] = -p->s * q->v[2] + q->s * p->v[2] + p->v[0] * q->v[1] - p->v[1] * q->v[0];
+}
+
+
+
+/** @brief Rotate a vector using a quaternion using the operation 
+ **        \f$\mathrm{q}\otimes\mathrm{v}_q\otimes\mathrm{q}^{-1}\f$,
+ **        where \f$\mathrm{v}_q\f$ is the 3D vector written as a quaternion
+ **        (with 0 in the scalar component).
+ *
+ * @detail This function does not do any pointer checks!
+ *
+ * FIXME: This function needs to be fixed.
+ *
+ * @param[in]      p       left-hand operand quaternion (pointer)
+ * @param[in]      qv      operand 3-component vector (pointer)
+ * @param[in,out]  result  pre-allocated result 3-component vector (pointer)
+ */
+inline static void rotate_vector(pyquat_Quat* p, double* qv, double* result) {
+
+  result[0] = (p->v[0]*p->v[0] + p->s*p->s - p->v[2]*p->v[2] + p->v[1]*p->v[1]) * qv[0]
+    + 2 * p->s * p->v[2] * qv[1];
+  
+  /*result[0] = (p->s*p->s + p->v[0]*p->v[0] - p->v[1]*p->v[1] - p->v[2]*p->v[2]) * qv[0]
+    + 2*(p->v[0]*p->v[1] - p->s*p->v[2]) * qv[1]
+    + 2*(p->v[0]*p->v[2] + p->s*p->v[1]) * qv[2];*/
+  
+  result[1] = 2*(p->v[0]*p->v[1] + p->s*p->v[2]) * qv[0]
+    + (p->s*p->s - p->v[0]*p->v[0] + p->v[1]*p->v[1] - p->v[2]*p->v[2]) * qv[1]
+    + 2*(p->v[1]*p->v[2] - p->s*p->v[0]) * qv[2];
+  
+  result[2] = 2*(p->v[0]*p->v[2] - p->s*p->v[1]) * qv[0]
+    + 2*(p->v[1]*p->v[2] + p->s*p->v[0]) * qv[1]
+    + (p->s*p->s - p->v[0]*p->v[0] - p->v[1]*p->v[1] + p->v[2]*p->v[2]) * qv[2];
 }
 
 
