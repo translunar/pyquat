@@ -31,6 +31,7 @@ static PyObject* pyquat_expm(PyObject* self, PyObject* args);
 static PyObject* pyquat_Quat_lerp(PyObject* self, PyObject* args);
 static PyObject* pyquat_Quat_slerp(PyObject* self, PyObject* args, PyObject* kwargs);
 static PyObject* pyquat_Quat_dot(PyObject* self, PyObject* args);
+static PyObject* pyquat_Quat_rotate(PyObject* self, PyObject* args);
 
 /*
 static PyObject * pyquat_Quat_new(PyTypeObject* type, PyObject* args) {
@@ -184,6 +185,7 @@ static PyMethodDef pyquat_Quat_methods[] = {
   {"lerp", (PyCFunction)pyquat_Quat_lerp, METH_VARARGS, "linear interpolation between two quaternions"},
   {"slerp", (PyCFunction)pyquat_Quat_slerp, METH_VARARGS | METH_KEYWORDS, "spherical linear interpolation or linear interpolation between two quaternions depending on whether the dot product exceeds the parameter 'lerp_threshold'"},
   {"dot", (PyCFunction)pyquat_Quat_dot, METH_VARARGS, "dot product of two quaternions as if they are 4D vectors"},
+  {"rotate", (PyCFunction)pyquat_Quat_rotate, METH_VARARGS, "rotate a vector"},
   {NULL, NULL, 0, NULL}  /* Sentinel */
 };
 
@@ -325,6 +327,23 @@ static PyObject* pyquat_Quat_repr(PyObject* obj) {
 }
 
 
+/** @brief Quaternion multiplication operation usually represented by 
+ **        \f$\mathrm{p}\otimes\mathrm{q}\f$.
+ *
+ * @detail This function does not do any pointer checks!
+ *
+ * @param[in]      p       left-hand operand quaternion (pointer)
+ * @param[in]      q       right-hand operand quaternion (pointer)
+ * @param[in,out]  result  pre-allocated result quaternion (pointer)
+ */
+inline static void otimes(pyquat_Quat* p, pyquat_Quat* q, pyquat_Quat* result) {
+  result->s    = p->s * q->s - (p->v[0] * q->v[0] + p->v[1] * q->v[1] + p->v[2] * q->v[2]);
+  result->v[0] = p->s * q->v[0] + q->s * p->v[0] - (p->v[1] * q->v[2] - p->v[2] * q->v[1]);
+  result->v[1] = p->s * q->v[1] + q->s * p->v[1] - (p->v[2] * q->v[0] - p->v[0] * q->v[2]);
+  result->v[2] = p->s * q->v[2] + q->s * p->v[2] - (p->v[0] * q->v[1] - p->v[1] * q->v[0]);
+}
+
+
 static PyObject * pyquat_Quat_mul(PyObject* self, PyObject* arg) {
 
   // Expects the one argument to be a pyquat_Quat
@@ -333,20 +352,72 @@ static PyObject * pyquat_Quat_mul(PyObject* self, PyObject* arg) {
     return NULL;
   }
 
-  pyquat_Quat* rhs    = (pyquat_Quat*)(arg);
-  pyquat_Quat* lhs    = (pyquat_Quat*)(self);
   pyquat_Quat* result = (pyquat_Quat*) PyObject_New(pyquat_Quat, &pyquat_QuatType);
-  if (result == NULL) {
-    PyErr_NoMemory();
-    return NULL;    
-  }
-  
-  result->s    = lhs->s * rhs->s - (lhs->v[0] * rhs->v[0] + lhs->v[1] * rhs->v[1] + lhs->v[2] * rhs->v[2]);
-  result->v[0] = lhs->s * rhs->v[0] + rhs->s * lhs->v[0] - (lhs->v[1] * rhs->v[2] - lhs->v[2] * rhs->v[1]);
-  result->v[1] = lhs->s * rhs->v[1] + rhs->s * lhs->v[1] - (lhs->v[2] * rhs->v[0] - lhs->v[0] * rhs->v[2]);
-  result->v[2] = lhs->s * rhs->v[2] + rhs->s * lhs->v[2] - (lhs->v[0] * rhs->v[1] - lhs->v[1] * rhs->v[0]);
+  Py_CheckAlloc(result);
+
+  otimes((pyquat_Quat*)self, (pyquat_Quat*)arg, result);
 
   return (PyObject*)(result);
+}
+
+
+/** @brief Quaternion multiplication operation usually represented by 
+ **        \f$\mathrm{p}\otimes\mathrm{q}\f$; however, for this version,
+ **        the scalar component of the right-hand quaternion is 0.
+ *
+ * @detail This function does not do any pointer checks!
+ *
+ * @param[in]      p       left-hand operand quaternion (pointer)
+ * @param[in]      vq      right-hand operand quaternion's vector component (pointer)
+ * @param[in,out]  result  pre-allocated result quaternion (pointer)
+ */
+inline static void otimes_vector(pyquat_Quat* p, double* vq, pyquat_Quat* result) {
+  result->s    =                  - p->v[0] * vq[0] - p->v[1] * vq[1] - p->v[2] * vq[2];
+  result->v[0] =  p->s * vq[0]    - p->v[1] * vq[2] + p->v[2] * vq[1];
+  result->v[1] =  p->s * vq[1]    - p->v[2] * vq[0] + p->v[0] * vq[2];
+  result->v[2] =  p->s * vq[2]    - p->v[0] * vq[1] + p->v[1] * vq[0];
+}
+
+
+/** @brief Quaternion multiplication operation usually represented by 
+ **        \f$\mathrm{p}\otimes\mathrm{q}\f$; however, for this version,
+ **        the scalar component of the output quaternion is 0, and
+ **        we treat q as conjugated.
+ *
+ * @detail This function does not do any pointer checks!
+ *
+ * @param[in]      p       left-hand operand quaternion (pointer)
+ * @param[in]      q       right-hand operand quaternion (pointer) which
+ *                         we treat as conjugated
+ * @param[in,out]  result  pre-allocated result vector of size 3 (pointer)
+ */
+inline static void otimes_conj_vector_out(pyquat_Quat* p, pyquat_Quat* q, double* result) {
+  result[0] = -p->s * q->v[0] + q->s * p->v[0] + p->v[1] * q->v[2] - p->v[2] * q->v[1];
+  result[1] = -p->s * q->v[1] + q->s * p->v[1] + p->v[2] * q->v[0] - p->v[0] * q->v[2];
+  result[2] = -p->s * q->v[2] + q->s * p->v[2] + p->v[0] * q->v[1] - p->v[1] * q->v[0];
+}
+
+
+static PyObject * pyquat_Quat_rotate(PyObject* self, PyObject* args) {
+
+  PyArrayObject* vec;
+  if (PyArg_ParseTuple(args, "O!|:rotate", &PyArray_Type, &vec)) {
+    if (not_double_nx1_or_length_n(vec, 3)) return NULL;
+    
+    PyArrayObject* result = (PyArrayObject*)PyArray_SimpleNew(vec->nd, vec->dimensions, NPY_DOUBLE);
+    Py_CheckAlloc(result);
+
+    pyquat_Quat t; // temporary quaternion
+    
+    double* v = (double*)vec->data;
+
+    // FIXME: combine these two functions into one single more efficient function.
+    otimes_vector((pyquat_Quat*)self, (double*)vec->data, &t);
+    otimes_conj_vector_out(&t, (pyquat_Quat*)self, (double*)result->data);
+
+    return (PyObject*)result;
+  }
+  return NULL;
 }
 
 

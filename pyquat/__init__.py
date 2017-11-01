@@ -364,22 +364,3 @@ def step_cg4(
 
     return (Quat(*q_next), w_next)
 
-def transform(q_a_to_b, v_a):
-    """Transform some vector v_a from the a frame to the b frame using the
-    operation 
-    \f$\mathrm{v}_{b_q} = \mathrm{q}_a^b \otimes \mathrm{v}_{a_q} \otimes \mathrm{q}_b^a\f$.
-
-    Args:
-        q_a_to_b:   quaternion transforming from frame a to b
-        v_a         an array of length 3
-    
-    Returns:
-        An array of length 3, transformed into the b frame.
-    """
-    v = v_a.reshape(3)
-    vaq = Quat(0.0, v[0], v[1], v[2])
-    vbq = q_a_to_b * vaq * q_a_to_b.conjugated()
-    vb = vbq.to_vector()[1:4]
-    if vb.shape == v_a.shape: return vb
-    else:                     return vb.reshape(v_a.shape)
-

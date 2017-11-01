@@ -401,15 +401,19 @@ class TestPyquat(QuaternionTest):
         self.assert_equal(lerp, mixed)
         self.assert_not_equal(lerp, slerp)
     
-    def test_transform(self):
-        """Transformation of a vector by a quaternion is equivalent to
-        transformation of a vector by a matrix"""
-        q = pq.Quat(1.0, 2.0, 3.0, 4.0).normalized()
-        T = q.to_matrix()
-        v_in  = np.array([0.1, 0.2, -0.3])
-        Tv    = T.dot(v_in)
-        qvq   = pq.transform(q, v_in)
-        np.testing.assert_almost_equal(Tv, qvq, decimal=16)
+
+    def test_rotate(self):
+        """Rotation of a vector using a quaternion is equivalent to standard matrix-vector multiplication over many random test quaternions and vectors (to 14 decimal places)"""
+        import pyquat.random as pqr
+        
+        for ii in range(0, 100):
+            q = pqr.rand()
+            T = q.to_matrix()
+            v = pqr.uniform_random_axis() * 10.0 # vector of length 10
+            qvq = q.rotate(v)
+            Tv  = T.dot(v)
+            np.testing.assert_almost_equal(Tv, qvq, decimal=14)
+
          
         
 if __name__ == '__main__':
