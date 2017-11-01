@@ -14,8 +14,7 @@ class TestRandom(QuaternionTest):
         np.testing.assert_array_almost_equal(v, uv, decimal=12)
 
     def test_randu(self):
-        """urand() produces random numbers which are inside the
-        correct range (-1,+1). """
+        """urand() produces random numbers which are inside the correct range (-1,+1). """
         for ii in range(0,100):
             v = pqr.randu()
             self.assertLessEqual(-1.0, v)

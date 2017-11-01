@@ -9,16 +9,14 @@ import unittest
         
 class TestWahba(QuaternionTest):
     def test_attitude_profile_matrix_from_quaternion(self):
-        """attitude_profile_matrix() doesn't raise errors when given a quaternion
-        measurement and a covariance"""
+        """attitude_profile_matrix() doesn't raise errors when given a quaternion measurement and a covariance"""
         q   = pq.identity()
         cov = np.identity(3)
         B   = pqw.attitude_profile_matrix(q, cov)
         # Needs actual test here
 
     def test_attitude_profile_matrix(self):
-        """attitude_profile_matrix() doesn't raise errors when given observation 
-        and reference vectors"""
+        """attitude_profile_matrix() doesn't raise errors when given observation and reference vectors"""
         ref = np.array([[1.0, 0.0],
                         [0.0, 0.0],
                         [0.0, 1.0]])
@@ -30,9 +28,7 @@ class TestWahba(QuaternionTest):
 
 
     def test_davenport_matrix_from_quaternion(self):
-        """The Davenport matrix produced by a quaternion is the same as that
-        produced by attitude_profile_matrix() called on that same
-        quaternion"""
+        """The Davenport matrix produced by a quaternion is the same as that produced by attitude_profile_matrix() called on that same quaternion"""
         q   = pq.identity()
         cov = np.identity(3)
         K1  = pqw.davenport_matrix(q = q, cov = cov)
@@ -42,8 +38,7 @@ class TestWahba(QuaternionTest):
         np.testing.assert_array_equal(K1, K2)
 
     def test_davenport_matrix(self):
-        """davenport_matrix() called on the output of attitude_profile_matrix()
-        produces a matrix of the correct shape"""
+        """davenport_matrix() called on the output of attitude_profile_matrix() produces a matrix of the correct shape"""
         ref = np.array([[1.0, 0.0],
                         [0.0, 0.0],
                         [0.0, 1.0]])
@@ -95,8 +90,7 @@ class TestWahba(QuaternionTest):
         self.assert_esoq2_two_observations_correct(ref = ref, obs = obs, decimal=12)
 
     def test_esoq2_90_z_rotation(self):
-        """ESOQ2 works properly with a 90-degree about-z rotation between ref 
-        and obs"""
+        """ESOQ2 works properly with a 90-degree about-z rotation between ref and obs"""
 
         # Test borrowed from https://github.com/muzhig/ESOQ2/blob/master/test.cpp
 
@@ -109,8 +103,7 @@ class TestWahba(QuaternionTest):
         self.assert_esoq2_two_observations_correct(ref = ref, obs = obs, decimal=12)
 
     def test_esoq2_90_x_rotation(self):
-        """ESOQ2 works properly with a 90-degree about-x rotation between ref 
-        and obs"""
+        """ESOQ2 works properly with a 90-degree about-x rotation between ref and obs"""
         
         # Test borrowed from https://github.com/muzhig/ESOQ2/blob/master/test.cpp
 
@@ -123,8 +116,7 @@ class TestWahba(QuaternionTest):
         self.assert_esoq2_two_observations_correct(ref = ref, obs = obs, decimal=12)
 
     def test_esoq2_90_y_rotation(self):
-        """ESOQ2 works properly with a 90-degree about-y rotation between ref 
-        and obs"""
+        """ESOQ2 works properly with a 90-degree about-y rotation between ref and obs"""
         
         # Test borrowed from https://github.com/muzhig/ESOQ2/blob/master/test.cpp
         ref = np.array([[1.0, 0.0],
@@ -137,8 +129,7 @@ class TestWahba(QuaternionTest):
 
         
     def test_esoq2_actual_rotation(self):
-        """Verifies that ESOQ2 produces the expected result for an arbitrary set.
-        of ref and obs vectors"""
+        """Verifies that ESOQ2 produces the expected result for an arbitrary set"""
         ref_d = np.array([[-0.13745816],
                           [ 0.44258304],
                           [ 0.88612951]])
