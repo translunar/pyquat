@@ -8,6 +8,8 @@ except ImportError, e:
     except:
         raise ImportError("pyquat C extension does not appear to have been built properly")
 
+import pyquat.wahba as wahba
+    
 import math
 import numpy as np
 from scipy import linalg

@@ -11,8 +11,6 @@ Reference:
 
 """
 
-import pyquat as pq
-
 import numpy as np
 from scipy import linalg
 from math import sqrt, pi, cos, acos
@@ -171,6 +169,8 @@ def sequential_rotation(B = None, q = None, irot = None):
         vector observations. Journal of Guidance and Control 4(1): 
         70-77.
     """
+    import pyquat as pq
+    
     if irot is None:
         diag_B  = np.diag(B)
         irot    = np.argmin(diag_B)
@@ -275,6 +275,7 @@ def esoq2(K,
     from Wahba's problem as a tuple.
 
     """
+    import pyquat as pq
 
     if lambda_0 is None: # Initial guess for maximum eigenvalue
         lambda_0 = float(n_obs)
