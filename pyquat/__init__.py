@@ -1,14 +1,4 @@
-try:
-    # for in-tree build
-    from _pyquat import *
-except ImportError, e:
-    try:
-        # for out-of-tree build
-        from pyquat._pyquat import *
-    except:
-        raise ImportError("pyquat C extension does not appear to have been built properly")
-
-import pyquat.wahba as wahba
+from _pyquat import *
     
 import math
 import numpy as np

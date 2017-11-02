@@ -1,11 +1,10 @@
 import numpy as np
 from scipy import linalg
-import pyquat as pq
-from pyquat import Quat
-import pyquat.wahba.esoq as pq_esoq
 from assertions import QuaternionTest
 import math
 import unittest
+
+from .context import pq, pq_esoq
         
 class TestWahbaESOQ(QuaternionTest):
     def test_attitude_profile_matrix_from_quaternion(self):
