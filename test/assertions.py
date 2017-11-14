@@ -1,5 +1,6 @@
 import unittest
 import numpy as np
+import math
 
 from .context import pq
 from .context import pq_esoq
@@ -32,7 +33,24 @@ class QuaternionTest(unittest.TestCase):
         self.assertNotEqual(q1, q2, **kwargs)
 
     def assert_almost_equal(self, q1, q2, **kwargs):
-        np.testing.assert_array_almost_equal(q1.to_vector(), q2.to_vector(), **kwargs)
+        np.testing.assert_array_almost_equal(np.array([0.0]), np.array([math.acos(q1.dot(q2))]), **kwargs)
+
+    def assert_not_almost_equal(self, q1, q2, decimal=7,err_msg='',verbose=True):
+        # This is a hack.
+        actual  = np.array([q1.dot(q2)])
+        desired = np.array([1.0])
+        
+        def _build_err_msg():
+            header = ('Arrays are almost equal to %d decimals' % decimal)
+            return np.testing.build_err_msg([actual, desired], err_msg, verbose=verbose,
+                                 header=header)
+    
+        try:
+            self.assert_almost_equal(q1, q2, decimal=decimal)
+        except AssertionError:
+            return None
+        raise AssertionError(_build_err_msg())
+        
 
     def assert_esoq2_two_observations_correct(self, ref, obs, **kwargs):
         """
