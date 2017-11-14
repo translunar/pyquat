@@ -4,7 +4,7 @@ from assertions import QuaternionTest
 import math
 import unittest
 
-from .context import pq
+from .context import pq      
 
 class TestPyquat(QuaternionTest):
     """Tests basic functionality on pyquat and the pyquat Quaternion type 'Quat' written in C"""
@@ -236,7 +236,7 @@ class TestPyquat(QuaternionTest):
         """CG3, CG4, and RK4 integration produce reasonably similar results"""
         dt = 0.1
         q = pq.Quat(1.0, 2.0, 3.0, 4.0).normalized()
-        w = np.array([[0.03, 0.02, 0.01]]).T
+        w = np.array([[0.3, 0.2, 0.1]]).T
         J = np.diag([200.0, 200.0, 100.0])
 
         # Test propagation using RK4
@@ -263,6 +263,38 @@ class TestPyquat(QuaternionTest):
         np.testing.assert_array_equal(w, w4)
         np.testing.assert_array_equal(w, w5)
         np.testing.assert_array_equal(w, w6)
+
+    def test_cg_integration_tiny_steps(self):
+        """CG4 integration produces reasonably similar results over many small steps as it would over one big step"""
+
+        # This test mostly exists to show that integration is not very accurate.
+        
+        q0 = pq.Quat(1.0, 2.0, 3.0, 4.0).normalized()
+        
+        w = np.array([[-1.0, -3.0, -4.0]]).T * (math.pi / 180.0)
+        
+        dt_small = 0.001
+        dt_large = 0.1
+        t        = 1.0
+
+        dt_total = 0.0
+        q_large = q0.copy()
+        while dt_total < t:
+            q_large, w_out = pq.step_cg4(q_large, w, dt_large, w_dynamics = None)
+            dt_total += dt_large
+        q_large.normalize()
+            
+        dt_total = 0.0
+        q_small  = q0.copy()
+        while dt_total < t:
+            q_small, w_out = pq.step_cg4(q_small, w, dt_small, w_dynamics = None)
+            dt_total += dt_small
+        q_small.normalize()
+
+        self.assert_not_almost_equal(q_large, q0)
+        self.assert_not_almost_equal(q_small, q0)
+
+        self.assert_almost_equal(q_small, q_large, decimal=2) # FAIRLY INACCURATE!
 
     def test_integration_handles_zero(self):
         """CG3, CG4, and RK4 integration correctly hadnle an angular velocity of  0"""
@@ -388,6 +420,7 @@ class TestPyquat(QuaternionTest):
         mixed = q1.slerp(q2, 0.5, lerp_threshold = 0.9)
         self.assert_equal(lerp, mixed)
         self.assert_not_equal(lerp, slerp)
+       
     
 
     def test_rotate(self):
