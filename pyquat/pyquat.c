@@ -312,7 +312,7 @@ static int pyquat_Quat_init(pyquat_Quat* self, PyObject* args) {
 
 static PyObject* pyquat_Quat_repr(PyObject* obj) {
   pyquat_Quat* self = (pyquat_Quat*)(obj);
-  return PyString_FromFormat("Quat{{\%s, \%s, \%s, \%s}}", 
+  return PyString_FromFormat("pyquat.Quat(\%s, \%s, \%s, \%s)", 
                              PyOS_double_to_string(self->s, 'g', 17, 0, NULL),
                              PyOS_double_to_string(self->v[0], 'g', 17, 0, NULL),
                              PyOS_double_to_string(self->v[1], 'g', 17, 0, NULL),
