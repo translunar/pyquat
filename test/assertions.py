@@ -33,11 +33,17 @@ class QuaternionTest(unittest.TestCase):
         self.assertNotEqual(q1, q2, **kwargs)
 
     def assert_almost_equal(self, q1, q2, **kwargs):
-        np.testing.assert_array_almost_equal(np.array([0.0]), np.array([math.acos(q1.dot(q2))]), **kwargs)
+        dot = q1.dot(q2)
+        if dot > 1.0:  dot = 1.0
+        if dot < -1.0: dot = -1.0
+        np.testing.assert_array_almost_equal(np.array([0.0]), np.array([math.acos(dot)]), **kwargs)
 
     def assert_not_almost_equal(self, q1, q2, decimal=7,err_msg='',verbose=True):
         # This is a hack.
-        actual  = np.array([q1.dot(q2)])
+        dot     = q1.dot(q2)
+        if dot > 1.0:  dot = 1.0
+        if dot < -1.0: dot = -1.0
+        actual  = np.array([dot])
         desired = np.array([1.0])
         
         def _build_err_msg():

@@ -179,12 +179,12 @@ class TestPyquat(QuaternionTest):
         """Simple propagation with small angular velocities produces the same result for matrices and quaternions"""
         dt = 0.01
         q0 = pq.Quat(1.0, 0.0, 0.0, 0.0)
-        w0 = np.array([[0.0, 0.0, 1.0]]).T
+        w0 = np.array([[3.0, 2.0, 1.0]]).T
         q1 = pq.propagate(q0, w0, dt)
         phi1 = q1.to_rotation_vector()
         phi2 = w0 * dt
         q2   = pq.from_rotation_vector(phi2)
-        self.assert_equal(q1, q2)
+        self.assert_almost_equal(q1, q2, decimal=6)
 
         # Test quaternion propagation
         q3 = pq.propagate(q0, w0, dt)
@@ -195,7 +195,12 @@ class TestPyquat(QuaternionTest):
         w0x  = pq.skew(w0)
         Tdot = np.dot(T0, w0x)
         T1   = np.identity(3) - Tdot * dt # dT = (I - [phi x])
-        self.assert_almost_equal_as_quat(q1, T1)
+        qT1  = pq.from_matrix(T1)
+        self.assert_almost_equal(q1, qT1)
+
+        # Compare to the additive result
+        q4 = pq.propagate_additively(q0, w0, dt)
+        self.assert_almost_equal(q4, qT1)
 
     def test_0_propagate(self):
         """Quaternion propagation with a 0 angular velocity does not lead to a zero division

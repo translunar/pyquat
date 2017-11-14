@@ -61,10 +61,20 @@ def propagate(q, w, dt):
     # Find magnitude of angular velocity (in r/s)
     w_norm = linalg.norm(w)
     if w_norm < QUAT_SMALL:
-        return q
+        return q.copy()
     return Quat(*(np.dot(expm(w, dt), q.to_vector())))
+
+def propagate_additively(q, w, dt):
+    """Change a quaternion q by some angular velocity w over some small
+    timestep dt, using additive propagation (q1 = q0 + dq/dt * dt)"""
+    
+    q_vector = q.to_vector()
+    q_vector += qdot(q_vector, w) * dt
+    return Quat(*q_vector)    
+
     
 def cov(ary):
+
     """
     Compute the covariance of an array of quaternions, where each
     column represents a quaternion.
