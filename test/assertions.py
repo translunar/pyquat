@@ -17,7 +17,7 @@ class QuaternionTest(unittest.TestCase):
         np.testing.assert_array_equal(q.to_matrix(), m, **kwargs)
 
     def assert_equal_as_quat(self, q, m, **kwargs):
-        self.assertEqual(q, pq.Quat.from_matrix(m).normalized(), **kwargs)
+        np.testing.assert_array_equal(q.to_vector(), pq.Quat.from_matrix(m).normalized().to_vector(), **kwargs)
         
     def assert_almost_equal_as_matrix(self, q, m, **kwargs):
         """ convert a quaternion to a matrix and compare it to m """
@@ -27,10 +27,10 @@ class QuaternionTest(unittest.TestCase):
         self.assert_almost_equal_components(q, pq.Quat.from_matrix(m).normalized(), **kwargs)
 
     def assert_equal(self, q1, q2, **kwargs):
-        self.assertEqual(q1, q2, **kwargs)
+        np.testing.assert_array_equal(q1.to_vector(), q2.to_vector(), **kwargs)
 
     def assert_not_equal(self, q1, q2, **kwargs):
-        self.assertNotEqual(q1, q2, **kwargs)
+        np.testing.assert_raises(AssertionError, np.testing.assert_array_equal, q1.to_vector(), q2.to_vector())
 
     def assert_almost_equal(self, q1, q2, **kwargs):
         dot = q1.dot(q2)

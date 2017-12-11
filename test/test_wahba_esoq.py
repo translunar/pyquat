@@ -1,6 +1,6 @@
 import numpy as np
 from scipy import linalg
-from assertions import QuaternionTest
+from test.assertions import QuaternionTest
 import math
 import unittest
 

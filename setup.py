@@ -10,8 +10,8 @@ import os
 import numpy
 
 MAJOR = 0
-MINOR = 2
-TINY  = 3
+MINOR = 3
+TINY  = 0
 version='%d.%d.%d' % (MAJOR, MINOR, TINY)
 
 c_quat = Extension('pyquat/_pyquat',
@@ -57,6 +57,7 @@ setup(name='pyquat',
 
           'Programming Language :: C',
           'Programming Language :: Python :: 2.7',
+          'Programming Language :: Python :: 3',
           'Programming Language :: Python :: Implementation :: CPython'
       ],
       keywords=['quaternion', 'math', 'maths', 'graphics', 'physics', 'orientation', 'attitude', 'pose', 'geometry', 'visualization', 'visualisation', 'animation', 'game development', 'simulation'],

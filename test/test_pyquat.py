@@ -1,6 +1,6 @@
 import numpy as np
 from scipy import linalg
-from assertions import QuaternionTest
+from test.assertions import QuaternionTest
 import math
 import unittest
 
@@ -11,7 +11,7 @@ class TestPyquat(QuaternionTest):
 
     def test_mean(self):
         """The mean quaternion is computed properly"""
-        self.assertEqual(
+        self.assert_equal(
             pq.mean(np.array([[1.0, 0.0, 0.0, 0.0],
                               [1.0, 0.0, 0.0, 0.0]]).T), 
             pq.Quat(1.0, 0.0, 0.0, 0.0))
@@ -209,6 +209,7 @@ class TestPyquat(QuaternionTest):
         q0 = pq.Quat(1.0, 0, 0, 0)
         w0 = np.zeros((3,1))
         q1 = pq.propagate(q0, w0, dt)
+
         self.assert_equal(q0, q1)
 
     def test_rk4_integration(self):

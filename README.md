@@ -1,6 +1,6 @@
 # pyquat
 
-pyquat is an extremely simple Python C extension for unit quaternions.
+pyquat is a Python C extension providing quaternions and functions relating to simulation of attitudes and rotations.
 
 ## Installation
 
@@ -21,10 +21,10 @@ pyquat is an extremely simple Python C extension for unit quaternions.
 
     transform = q2.to_matrix()
 
-    vec = q2.to_angle_vector()
+    vec = q2.to_rotation_vector()
 
-## Copyright
+## License
 
-Copyright 2016 John O. Woods, Ph.D., and Intuitive Machines
+Copyright 2016--2017 John O. Woods, Ph.D., and Intuitive Machines.
 
-BSD 3-clause license
+See LICENSE.txt.

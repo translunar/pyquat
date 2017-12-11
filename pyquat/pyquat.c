@@ -144,8 +144,6 @@ static PyMethodDef pyquat_methods[] = {
 };
 
 
-
-
 static PyMemberDef pyquat_Quat_members[] = {
   {"s",  T_DOUBLE, offsetof(pyquat_Quat, s),                    0, "scalar component"  },
   {"vx", T_DOUBLE, offsetof(pyquat_Quat, v),                    0, "vector x component"},
@@ -226,8 +224,7 @@ static PyNumberMethods pyquat_Quat_as_number = {
 
 
 static PyTypeObject pyquat_QuatType = {
-  PyObject_HEAD_INIT(NULL)   // No semicolon! Don't add one
-  0,                         /*ob_size       -- historical artifact, not used any longer */
+  PyVarObject_HEAD_INIT(NULL, 0)
   "pyquat.Quat",            /*tp_name*/
   sizeof(pyquat_Quat),       /*tp_basicsize*/
   0,                         /*tp_itemsize   -- variable-length objects like lists and strings, does not apply */
@@ -271,18 +268,19 @@ static PyTypeObject pyquat_QuatType = {
 /* Initialize the pyquat module and add pyquat.Quat to it.
  *
  */
-PyMODINIT_FUNC init_pyquat(void) {
+static PyObject* pyquat_init(void) {
   PyObject* m;
 
   pyquat_QuatType.tp_new = PyType_GenericNew;
   if (PyType_Ready(&pyquat_QuatType) < 0)
-    return;
-
-  // Define the pyquat module.
-  m = Py_InitModule3("_pyquat", pyquat_methods,
-         "Quaternion module with fast unit (right) quaternion math written in C.");
+    return NULL;  
+  
+  MOD_DEF(m, "_pyquat",
+          "Quaternion module with fast unit (right) quaternion math written in C.",
+          pyquat_methods);
+  
   if (m == NULL)
-    return;
+    return NULL;
 
   // Import NumPy to prevent a segfault when we call a function that uses NumPy API.
   import_array();
@@ -290,7 +288,16 @@ PyMODINIT_FUNC init_pyquat(void) {
   // Create the Quat class in the pyquat module.
   Py_INCREF(&pyquat_QuatType);
   PyModule_AddObject(m, "Quat", (PyObject *)&pyquat_QuatType);
+
+  return m;
 }
+
+#ifdef IS_PY3K
+PyMODINIT_FUNC PyInit__pyquat(void) { return pyquat_init(); }
+#else
+PyMODINIT_FUNC init_pyquat(void) { pyquat_init(); }
+#endif
+
 
 
 static int pyquat_Quat_init(pyquat_Quat* self, PyObject* args) {
@@ -312,11 +319,11 @@ static int pyquat_Quat_init(pyquat_Quat* self, PyObject* args) {
 
 static PyObject* pyquat_Quat_repr(PyObject* obj) {
   pyquat_Quat* self = (pyquat_Quat*)(obj);
-  return PyString_FromFormat("pyquat.Quat(\%s, \%s, \%s, \%s)", 
-                             PyOS_double_to_string(self->s, 'g', 17, 0, NULL),
-                             PyOS_double_to_string(self->v[0], 'g', 17, 0, NULL),
-                             PyOS_double_to_string(self->v[1], 'g', 17, 0, NULL),
-                             PyOS_double_to_string(self->v[2], 'g', 17, 0, NULL));
+  return PyUnicode_FromFormat("pyquat.Quat(\%s, \%s, \%s, \%s)", 
+                              PyOS_double_to_string(self->s, 'g', 17, 0, NULL),
+                              PyOS_double_to_string(self->v[0], 'g', 17, 0, NULL),
+                              PyOS_double_to_string(self->v[1], 'g', 17, 0, NULL),
+                              PyOS_double_to_string(self->v[2], 'g', 17, 0, NULL));
 }
 
 
@@ -609,7 +616,7 @@ static PyObject* pyquat_Quat_from_angle_axis(PyObject* type,
     Py_CheckAlloc(q);
 
     if (kwargs) {
-      PyObject* theta_str = PyString_FromString(keywords[4]);
+      PyObject* theta_str = PyUnicode_FromString(keywords[4]);
       if (PyDict_Contains(kwargs, theta_str)) { // Overwrite any values for x and y
         x = sqrt(1.0 - z * z) * cos(theta);
         y = sqrt(1.0 - z * z) * sin(theta);

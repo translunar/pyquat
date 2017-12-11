@@ -1,6 +1,6 @@
 import unittest
-import test_pyquat, test_random
-import test_wahba_esoq, test_wahba_valenti
+from test import test_pyquat, test_random
+from test import test_wahba_esoq, test_wahba_valenti
 
 def pyquat_test_suite():
     """

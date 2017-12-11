@@ -4,7 +4,7 @@ import pyquat as pq
 from pyquat import Quat
 import pyquat.wahba.valenti as pqv
 import pyquat.random as pqr
-from assertions import QuaternionTest
+from test.assertions import QuaternionTest
 import math
 import unittest
         
