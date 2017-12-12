@@ -11,75 +11,8 @@ Reference:
 import numpy as np
 from math import sqrt
 
-def q_acc(a):
-    """Helper function for wahba.valenti(). Computes the q_acc auxiliary
-    quaternion using a relatively noiseless measurement a.
-
-    Args:
-        a:  relatively noiseless measurement vector with unit norm
-
-    Returns: 
-        An auxiliary quaternion q_acc which rotates the gravity
-        vector [0,0,1]' such that it points at a; thus, q_acc's
-        conjugate identifies an arbitrary frame xyD frame (where D is
-        down, and x and y are arbitrary).
-
-    """
-    import pyquat as pq
-    
-    if a[2] >= 0:
-        s2x1pay = sqrt(2.0 * (1+a[2]))
-        
-        return pq.Quat(  sqrt( (1+a[2]) / 2.0 ),
-                         a[1] / s2x1pay,
-                        -a[0] / s2x1pay,
-                         0.0 )
-    else:
-        s2x1may = sqrt(2.0 * (1-a[2]))
-        
-        return pq.Quat( -a[1] / s2x1may,
-                        -sqrt( (1-a[2]) / 2.0 ),
-                         0.0,
-                        -a[0] / s2x1may )
-
-
-def q_mag(l):
-    """Helper function for wahba.valenti(). Computes the q_mag auxiliary
-    quaternion using a relatively noisy measurement b.
-
-    Args:
-        l:  relatively noisy measurement vector with unit norm, which
-            has already been rotated into the xyD frame given by q_acc(a).
-
-    Returns: 
-        An auxiliary quaternion q_mag which rotates about the
-        z-axis to an arbitrary xyD frame (from q_acc()) from a
-        "global" NED frame where N is defined as the horizontal
-        component of the magnetically northward vector (*not* true
-        north).
-
-    """
-    import pyquat as pq
-
-    gamma         = l[0]**2 + l[1]**2
-    sqrt_gamma    = sqrt(gamma)
-    lx_sqrt_gamma = l[0] * sqrt_gamma
-    sqrt_2        = sqrt(2.0)
-
-    if l[0] >= 0:
-        sgplxsg = sqrt( gamma + lx_sqrt_gamma )
-        return pq.Quat( sgplxsg / (sqrt_2 * sqrt_gamma),
-                        0.0,
-                        0.0,
-                       -l[1] / (sqrt_2 * sgplxsg) )
-
-    else:
-        sgmlxsg = sqrt(gamma - lx_sqrt_gamma )
-        return pq.Quat( l[1] / (sqrt_2 * sgmlxsg),
-                        0.0,
-                        0.0,
-                       -sgmlxsg / (sqrt_2 * sqrt_gamma) )
-        
+from pyquat import valenti_q_mag as q_mag
+from pyquat import valenti_q_acc as q_acc
     
     
 def q_global_to_local(a, b):

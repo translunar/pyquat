@@ -32,7 +32,8 @@ static PyObject* pyquat_Quat_lerp(PyObject* self, PyObject* args);
 static PyObject* pyquat_Quat_slerp(PyObject* self, PyObject* args, PyObject* kwargs);
 static PyObject* pyquat_Quat_dot(PyObject* self, PyObject* args);
 static PyObject* pyquat_Quat_rotate(PyObject* self, PyObject* args);
-
+static PyObject* pqw_valenti_q_acc(PyObject* self, PyObject* arg);
+static PyObject* pqw_valenti_q_mag(PyObject* self, PyObject* arg);
 
 static int not_double_array(PyArrayObject* v) {
   if (v->descr->type_num != NPY_DOUBLE) {
@@ -140,6 +141,8 @@ static PyMethodDef pyquat_methods[] = {
   {"big_omega", (PyCFunction)pyquat_big_omega, METH_VARARGS, "compute the 4x4 Omega matrix for some angular velocity"},
   {"skew", (PyCFunction)pyquat_skew, METH_VARARGS, "compute the 3x3 cross-product (skew symmetric) matrix for some vector"},
   {"expm", (PyCFunction)pyquat_expm, METH_VARARGS, "compute the 4x4 matrix exponential for quaternion propagation for some angular velocity and time step"},
+  {"valenti_q_mag", (PyCFunction)pqw_valenti_q_mag, METH_O, "compute a quaternion mapping from a z-down frame to an x-magnetic-north/z-down frame"},
+  {"valenti_q_acc", (PyCFunction)pqw_valenti_q_acc, METH_O, "compute a quaternion mapping from an arbitrary unknown frame to a z-down frame"},  
   {NULL, NULL, 0, NULL}  /* Sentinel */
 };
 
@@ -1292,4 +1295,104 @@ static PyObject* pyquat_Quat_dot(PyObject* self, PyObject* args) {
   }
 
   return NULL;
+}
+
+
+/*
+ * API methods that should really go in a separate module eventually.
+ */
+
+/** @brief Helper for pqw_valenti_q_mag
+ *
+ * @param[in]     l  relatively noisey measurement vector with unit norm,
+ *                   which has already been rotated into the xyD frame
+ *                   given by q_acc(a)
+ * @param[in,out] q  result quaternion, already allocated
+ */
+void valenti_q_mag(double l[3], pyquat_Quat* q) {
+
+  double gamma         = l[0]*l[0] + l[1]*l[1];
+
+  if (l[0] >= 0) {
+    double gplxsg = gamma + l[0] * sqrt(gamma);
+    q->s    = sqrt( gplxsg ) / sqrt(2.0 * gamma);
+    q->v[0] = 0.0;
+    q->v[1] = 0.0;
+    q->v[2] = -l[1] / sqrt( 2.0 * gplxsg );
+  } else {
+    double gmlxsg = gamma - l[0] * sqrt(gamma);
+    q->s    = l[1] / sqrt(2.0 * gmlxsg);
+    q->v[0] = 0.0;
+    q->v[1] = 0.0;
+    q->v[2] = -sqrt( gmlxsg ) / sqrt(2.0 * gamma);
+  }
+}
+
+
+/*
+ * API methods that should really go in a separate module eventually.
+ */
+
+/** @brief Helper for pqw_valenti_q_acc
+ *
+ * @param[in]     a  relatively noisey measurement vector with unit norm
+ * @param[in,out] q  result quaternion q_acc, already allocated
+ */
+void valenti_q_acc(double a[3], pyquat_Quat* q) {
+
+  if (a[2] >= 0) {
+    double s2x1pay = sqrt(2.0 * (1.0 + a[2]));
+    
+    q->s    =  sqrt( (1.0 + a[2]) / 2.0 );
+    q->v[0] =  a[1] / s2x1pay;
+    q->v[1] = -a[0] / s2x1pay;
+    q->v[2] =  0.0;
+  } else {
+    double s2x1may = sqrt(2.0 * (1.0 - a[2]));
+    
+    q->s    = -a[1] / s2x1may;
+    q->v[0] = -sqrt( (1.0 - a[2]) / 2.0 );
+    q->v[1] = 0.0;
+    q->v[2] = -a[0] / s2x1may;
+  }
+}
+
+
+static PyObject* pqw_valenti_q_mag(PyObject* self, PyObject* arg) {
+  if (!PyObject_IsInstance(arg, (PyObject*)&PyArray_Type)) {
+    PyErr_SetString(PyExc_ValueError, "expected numpy array");
+    return NULL;
+  }
+
+  if (not_double_nx1_or_length_n((PyArrayObject*)arg, 3)) return NULL;
+  PyArrayObject* ary_in = PyArray_GETCONTIGUOUS(arg);
+
+  double* v = (double*)ary_in->data;
+
+  pyquat_Quat* q = (pyquat_Quat*) PyObject_New(pyquat_Quat, &pyquat_QuatType);
+  Py_CheckAlloc(q);
+
+  valenti_q_mag(v, q);
+
+  return (PyObject*)q;
+}
+
+
+static PyObject* pqw_valenti_q_acc(PyObject* self, PyObject* arg) {
+  if (!PyObject_IsInstance(arg, (PyObject*)&PyArray_Type)) {
+    PyErr_SetString(PyExc_ValueError, "expected numpy array");
+    return NULL;
+  }
+
+  if (not_double_nx1_or_length_n((PyArrayObject*)arg, 3)) return NULL;
+  PyArrayObject* ary_in = PyArray_GETCONTIGUOUS(arg);
+
+  double* v = (double*)ary_in->data;
+
+  pyquat_Quat* q = (pyquat_Quat*) PyObject_New(pyquat_Quat, &pyquat_QuatType);
+  Py_CheckAlloc(q);
+
+  valenti_q_acc(v, q);
+
+  return (PyObject*)q;
 }
