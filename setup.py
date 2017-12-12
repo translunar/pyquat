@@ -11,10 +11,10 @@ import numpy
 
 MAJOR = 0
 MINOR = 3
-TINY  = 0
+TINY  = 1
 version='%d.%d.%d' % (MAJOR, MINOR, TINY)
 
-c_quat = Extension('pyquat/_pyquat',
+c_quat = Extension('_pyquat',
                    ['pyquat/pyquat.c'],
                    include_dirs  = [numpy.get_include()],
                    define_macros = [('MAJOR_VERSION', MAJOR),
