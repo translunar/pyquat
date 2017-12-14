@@ -16,6 +16,7 @@ version='%d.%d.%d' % (MAJOR, MINOR, TINY)
 
 c_quat = Extension('_pyquat',
                    ['pyquat/pyquat.c'],
+                   extra_compile_args = ["-std=c99"],
                    include_dirs  = [numpy.get_include()],
                    define_macros = [('MAJOR_VERSION', MAJOR),
                                     ('MINOR_VERSION', MINOR),
@@ -58,6 +59,9 @@ setup(name='pyquat',
           'Programming Language :: C',
           'Programming Language :: Python :: 2.7',
           'Programming Language :: Python :: 3',
+          'Programming Language :: Python :: 3.4',
+          'Programming Language :: Python :: 3.5',
+          'Programming Language :: Python :: 3.6',
           'Programming Language :: Python :: Implementation :: CPython'
       ],
       keywords=['quaternion', 'math', 'maths', 'graphics', 'physics', 'orientation', 'attitude', 'pose', 'geometry', 'visualization', 'visualisation', 'animation', 'game development', 'simulation'],
