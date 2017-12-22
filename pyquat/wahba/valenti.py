@@ -13,6 +13,8 @@ from math import sqrt
 
 from pyquat import valenti_q_mag as q_mag
 from pyquat import valenti_q_acc as q_acc
+from pyquat import valenti_dq_mag as dq_mag
+from pyquat import valenti_dq_acc as dq_acc
     
     
 def q_global_to_local(a, b):
@@ -37,9 +39,9 @@ def q_global_to_local(a, b):
     """
 
     q_a      = q_acc(a)
-    # q_a maps from G to intermediate.
-    # Thus q_a_conj maps from intermediate to G, where intermediate
-    # is just an about-z rotation from L.
+    # q_a maps from L to intermediate.
+    # Thus q_a_conj maps from intermediate to L, where intermediate
+    # is just an about-z rotation from G.
     # Transform vector b into the intermediate frame.
     l        = q_a.conjugated().rotate(b)
     

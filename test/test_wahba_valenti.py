@@ -19,6 +19,10 @@ class TestWahbaValenti(QuaternionTest):
             a1 = q.rotate(d)
             np.testing.assert_almost_equal(a0, a1, decimal=14)
 
+            q  = pqv.dq_acc(a0)
+            a1 = q.rotate(d)
+            np.testing.assert_almost_equal(a0, a1, decimal=14)
+
     def test_q_mag_points_north(self):
         """ Tests that q_mag produces an arbitrary quaternion which points a random vector at [1,0,0]' (magnetic north); also tests that q_global_to_local gives the same result"""
         for ii in range(0, 100):
@@ -32,9 +36,15 @@ class TestWahbaValenti(QuaternionTest):
             l  = qa.conjugated().rotate(b)
             qm = pqv.q_mag(l)
 
+            dqm = pqv.dq_mag(l)
+
             # Test that qm is about-z only
             self.assertEqual(qm.x, 0.0)
             self.assertEqual(qm.y, 0.0)
+
+            # Do the same for dq_mag
+            self.assertEqual(dqm.x, 0.0)
+            self.assertEqual(dqm.y, 0.0)
         
             q_G_to_L  = qa * qm
             q_L_to_G  = q_G_to_L.conjugated()
