@@ -28,6 +28,13 @@ class TestPyquat(QuaternionTest):
             pq.Quat(0.70710678118654757, 0.70710678118654757, 0.0, 0.0),
             delta=1e-12)
 
+    def test_positive_scalar(self):
+        """Quaternions initialize with positive scalar component regardless of input"""
+        self.assert_equal(pq.Quat(-1.0, 0.0, 0.0, 0.0), pq.identity())
+
+        self.assert_equal(pq.Quat(-1.0, 2.0, 3.0, 4.0).normalized(),
+                          pq.Quat(1.0, -2.0, -3.0, -4.0).normalized())
+
     def test_identity(self):
         """The identity quaternion is properly constructed"""
         self.assert_equal_as_matrix(

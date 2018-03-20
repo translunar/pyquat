@@ -306,6 +306,23 @@ PyMODINIT_FUNC init_pyquat(void) { pyquat_init(); }
 #endif
 
 
+/** @brief Negate a quaternion in-place.
+ **
+ * @detail This function does no pointer checks. It is generally used
+ *         to ensure that output quaternions do not have a negative
+ *         scalar component.
+ *
+ * @param[in,out]  q   quaternion to negate
+ */
+inline static void negate(pyquat_Quat* q) {
+  q->s    = -q->s;
+  q->v[0] = -q->v[0];
+  q->v[1] = -q->v[1];
+  q->v[2] = -q->v[2];
+
+  return;
+}
+
 
 static int pyquat_Quat_init(pyquat_Quat* self, PyObject* args) {
   
@@ -315,10 +332,17 @@ static int pyquat_Quat_init(pyquat_Quat* self, PyObject* args) {
     return -1;
 
   // Read the scalar and vector components of the quaternion.
-  self->s = scalar;
-  self->v[0] = vx;
-  self->v[1] = vy;
-  self->v[2] = vz;
+  if (scalar >= 0) {
+    self->s    = scalar;
+    self->v[0] = vx;
+    self->v[1] = vy;
+    self->v[2] = vz;
+  } else {
+    self->s    = -scalar;
+    self->v[0] = -vx;
+    self->v[1] = -vy;
+    self->v[2] = -vz;
+  }
 
   return 0;
 }
@@ -364,8 +388,12 @@ static PyObject * pyquat_Quat_mul(PyObject* self, PyObject* arg) {
 
   otimes((pyquat_Quat*)self, (pyquat_Quat*)arg, result);
 
+  // restrict to positive scalar portion of the 4D sphere
+  if (result->s < 0) negate(result);
+
   return (PyObject*)(result);
 }
+
 
 
 /** @brief Quaternion multiplication operation usually represented by 

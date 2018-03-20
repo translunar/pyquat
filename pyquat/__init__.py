@@ -70,13 +70,11 @@ def propagate_additively(q, w, dt):
     
     q_vector = q.to_vector()
     q_vector += qdot(q_vector, w) * dt
-    return Quat(*q_vector)    
+    return Quat(*q_vector)
 
     
 def cov(ary):
-
-    """
-    Compute the covariance of an array of quaternions, where each
+    """Compute the covariance of an array of quaternions, where each
     column represents a quaternion.
     """
     # If the user supplies an array of N quaternions, convert it to a 4xN array,
