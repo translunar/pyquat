@@ -175,6 +175,20 @@ class TestPyquat(QuaternionTest):
         
         np.testing.assert_array_equal(wx, pq.skew(w))        
 
+    def test_similar_multiplication(self):
+        """Multiplication of two non-identity quaternions that are close together."""
+        q0 = pq.Quat(0.97020921924687786, 0.00092059174936653205, 0.0073268579434615034, 0.24215602522314206)
+        w = np.array([[-1.23692754e-06],
+                      [  4.35427879e-23],
+                      [ -7.72662863e-07]])
+        dt = 0.01
+        q1 = pq.propagate(q0, w, dt)
+        
+        dq_true = pq.propagate(pq.identity(), w, 0.01)
+        dq = q1 * q0.conjugated()
+        np.testing.assert_almost_equal(dq.to_vector() / dq_true.to_vector(), 1.0, decimal=3)
+        # Not entirely sure how to fix this.
+        
     def test_propagate(self):
         """Simple propagation with small angular velocities produces the same result for matrices and quaternions"""
         dt = 0.01
