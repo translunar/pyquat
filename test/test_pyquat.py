@@ -209,6 +209,24 @@ class TestPyquat(QuaternionTest):
         q4 = pq.propagate_additively(q0, w0, dt)
         self.assert_almost_equal(q4, qT1)
 
+        # Compare to the matrix propagation
+        # Note: Matrix propagation is new and I'm not totally sure it's
+        # correct yet, so this just verifies that it looks reasonable.
+        # If it's correct, Tr4 should be the most accurate.
+        T0   = q0.to_matrix()
+        Tr1  = pq.matrix_propagate(T0, w0, dt, r=1)
+        Tr2  = pq.matrix_propagate(T0, w0, dt, r=2)
+        Tr3  = pq.matrix_propagate(T0, w0, dt, r=3)
+        Tr4  = pq.matrix_propagate(T0, w0, dt, r=4)
+        np.testing.assert_equal(T1, Tr1)
+        np.testing.assert_almost_equal(Tr1, Tr4, decimal=3)
+        np.testing.assert_almost_equal(Tr2, Tr4, decimal=5)
+        np.testing.assert_almost_equal(Tr3, Tr4, decimal=7)
+
+        # Test that zero-propagation is identical no matter the degree.
+        T0r4 = pq.matrix_propagate(T0, np.zeros(3), dt, r=4)
+        np.testing.assert_equal(T0, T0r4)
+
     def test_0_propagate(self):
         """Quaternion propagation with a 0 angular velocity does not lead to a zero division
         """
@@ -448,7 +466,29 @@ class TestPyquat(QuaternionTest):
             Tv  = T.dot(v)
             np.testing.assert_almost_equal(Tv, qvq, decimal=14)
 
-         
+
+    def test_small_propagation(self):
+        """Propagation of non-identity quaternions by small amounts produces same result as 4th-order matrix propagation."""
+        q0 = pq.Quat(0.97020921924687786, 0.00092059174936653205, 0.0073268579434615034, 0.24215602522314206)
+        w = np.array([[-1.23692754e-06],
+                      [  4.35427879e-23],
+                      [ -7.72662863e-07]])
+        dt = 0.01
+        T0 = q0.to_matrix()
+        q1 = pq.propagate(q0, w, dt)
+        T1 = pq.matrix_propagate(T0, w, dt, r=4)
+        qT1 = pq.from_matrix(T1)
+        np.testing.assert_almost_equal(qT1.to_vector(), q1.to_vector(), decimal=16)
+
+        # Note that we cannot compare the results as quaternions, as there is too
+        # much error in the multiplication operation. We must use
+        #
+        #   dT = T0.T.dot(T1)
+        #
+        # rather than
+        #
+        #   dq = q1 * q0.conjugated()
+        #
         
 if __name__ == '__main__':
     unittest.main()

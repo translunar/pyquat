@@ -64,6 +64,50 @@ def propagate(q, w, dt):
         return q.copy()
     return Quat(*(np.dot(expm(w, dt), q.to_vector())))
 
+def matrix_propagate(T, w, dt, r = 1):
+    """Propagate an attitude matrix T forward by some angular velocity w
+    over time step dt. This method uses a Taylor expansion of degree r
+    where r is between 1 and 4 inclusive.
+
+    Note that there's minimal computational difference between orders
+    2 and 3, as each involves a second 3x3 matrix multiplication. The
+    step to 4th order is also quite small, involving only an
+    additional vector dot product. In most cases, you will probably
+    want to use r = 1 or r = 4.
+
+    Args:
+        T:  transformation matrix (3x3)
+        w:  angular velocity vector (length 3)
+        dt: time step size
+        r:  Taylor expansion degree (between 1 and 4 inclusive)
+
+    Returns:
+        A 3x3 matrix giving the updated transformation.
+    """
+
+    wt   = w*dt
+    wtx  = skew(wt)
+    
+    exp  = np.identity(3) + wtx
+    if r >= 2:
+        wtx2 = wtx.dot(wtx)
+        if r == 2:
+            exp += wtx2 * 0.5
+        elif r >= 3:
+            if r == 3:
+                exp += wtx2 * (0.5 - wt / 6.0)
+            elif r == 4:
+                wt2   = wt.T.dot(wt)
+                exp += wtx2 * (0.5 - wt / 6.0 - wt2 / 24.0)
+            else:
+                raise(NotImplemented, "degree must be between 1 and 4 inclusive")
+        else:
+            raise(NotImplemented, "degree must be between 1 and 4 inclusive")
+
+    return exp.T.dot(T)
+        
+    
+
 def propagate_additively(q, w, dt):
     """Change a quaternion q by some angular velocity w over some small
     timestep dt, using additive propagation (q1 = q0 + dq/dt * dt)"""
