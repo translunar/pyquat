@@ -1249,15 +1249,11 @@ static PyObject* pyquat_Quat_lerp(PyObject* self, PyObject* args) {
                        &pyquat_QuatType, &q1,
                        &t)) {
 
-    if (t <= 0 || t >= 1) {
-      if (t == 0) {
-        return pyquat_Quat_copy(q0);
-      } else if (t == 1) {
-        return pyquat_Quat_copy(q1);
-      }
-      PyErr_SetString(PyExc_ValueError, "expected t in range [0,1]");
-      return NULL;
-    }    
+    if (t == 0) {
+      return pyquat_Quat_copy(q0);
+    } else if (t == 1) {
+      return pyquat_Quat_copy(q1);
+    }
 
     // allocate result quaternion
     pyquat_Quat* q = (pyquat_Quat*)PyObject_New(pyquat_Quat, &pyquat_QuatType);
@@ -1289,14 +1285,10 @@ static PyObject* pyquat_Quat_slerp(PyObject* self,
                                   &pyquat_QuatType, &q1,
                                   &t,
                                   &lerp_threshold)) {
-    if (t <= 0 || t >= 1) {
-      if (t == 0) {
-        return pyquat_Quat_copy(q0);
-      } else if (t == 1) {
-        return pyquat_Quat_copy(q1);
-      }
-      PyErr_SetString(PyExc_ValueError, "expected t in range [0,1]");
-      return NULL;
+    if (t == 0) {
+      return pyquat_Quat_copy(q0);
+    } else if (t == 1) {
+      return pyquat_Quat_copy(q1);
     }
 
     // allocate result quaternion

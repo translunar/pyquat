@@ -4,7 +4,9 @@ from test.assertions import QuaternionTest
 import math
 import unittest
 
-from .context import pq      
+from .context import pq
+
+PLOT = False
 
 class TestPyquat(QuaternionTest):
     """Tests basic functionality on pyquat and the pyquat Quaternion type 'Quat' written in C"""
@@ -489,6 +491,44 @@ class TestPyquat(QuaternionTest):
         #
         #   dq = q1 * q0.conjugated()
         #
+
+
+    def test_interp(self):
+        """Numpy-style interpolation"""
+
+        # First set up a series
+        xp = [-0.1, 0.0, 0.1]
+        w0 = np.array([1.0, 2.0, 3.0])
+        w1 = np.array([0.9, 1.9, 3.1])
+        q0 = pq.identity()
+        q1 = pq.propagate(q0, w0, 0.1)
+        q2 = pq.propagate(q1, w1, 0.1)
+        fp = [q0, q1, q2]
+
+        # Now interpolate it
+        x = [-0.15, -0.105, -0.1, -0.09, -0.05, 0.05, 0.1, 0.15]
+        f = pq.interp(x, xp, fp)
+        self.assert_equal(f[2], q0)
+        self.assert_equal(f[6], q2)
+
+        # Test by inspection:
+        # FIXME: This needs to be more rigorously tested.
+        if PLOT == True:
+            import matplotlib.pyplot as plt
+            fig = plt.figure()
+            ax = fig.add_subplot(111)
+            q0v = q0.to_vector()
+            q1v = q1.to_vector()
+            q2v = q2.to_vector()
+            ax.plot(xp, [q0v[0], q1v[0], q2v[0]])
+            ax.plot(xp, [q0v[1], q1v[1], q2v[1]])
+            ax.plot(xp, [q0v[2], q1v[2], q2v[2]])
+            ax.plot(xp, [q0v[3], q1v[3], q2v[3]])
+
+            for ii in range(0, len(x)):
+                ax.scatter([x[ii], x[ii], x[ii], x[ii]], f[ii].to_vector(), s=2)
+            plt.show()
+        
         
 if __name__ == '__main__':
     unittest.main()

@@ -408,3 +408,58 @@ def step_cg4(
 
     return (Quat(*q_next), w_next)
 
+
+def interp(x, xp, fp,
+           lerp_threshold = 1.0,
+           left           = 'slerp',
+           right          = 'slerp'):
+    """Corresponds roughly to numpy.interp. Attempts to interpolate the
+    quaternion series qp occurring at independent variable series tp (e.g.
+    times) at other values given by t.
+
+    Note that left and right, when set to 'slerp', ignore lerp_threshold.
+
+    Args:
+        x:               time or times at which to interpolate
+        xp:              times corresponding to qp values
+        fp:              quaternion series
+        lerp_threshold:  dot product threshold for deciding between lerp
+                         and slerp (default is 1.0, always uses slerp; for
+                         always use lerp, choose 0.0)
+        left:            'lerp' or 'slerp' (default 'slerp')
+        right:           'lerp' or 'slerp' (default 'slerp')
+
+    Returns:
+        If x is a single value, returns a single quaternion. Otherwise,
+        returns a list of quaternions of same size as x.
+    """
+
+    indices = np.searchsorted(xp, x)
+    f       = []
+
+    if isinstance(x, (float, int)):
+        x = [x]
+
+    jj = 0
+    for ii in indices:
+        if ii == 0: # <= xp (left)
+            t = (x[jj] - xp[0]) / (xp[1] - xp[0])
+            if left == 'slerp':
+                f.append(fp[0].slerp(fp[1], t, lerp_threshold = 1.0))
+            else:
+                f.append(fp[0].lerp(fp[1], t))
+
+        elif ii == len(fp): # >= xp (right)
+            t = (x[jj] - xp[ii-2]) / (xp[ii-1] - xp[ii-2])
+            if right == 'slerp':
+                f.append(fp[ii-2].slerp(fp[ii-1], t, lerp_threshold = 1.0))
+            else:
+                f.append(fp[ii-2].lerp(fp[ii-1], t))
+
+        else: # all others
+            t = (x[jj] - xp[ii-1]) / (xp[ii] - xp[ii-1])
+            f.append(fp[ii-1].slerp(fp[ii], t, lerp_threshold = lerp_threshold))
+
+        jj += 1
+
+    return f
