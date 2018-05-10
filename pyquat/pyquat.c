@@ -290,7 +290,7 @@ static PyObject* pyquat_init(void) {
     return NULL;
 
   // Import NumPy to prevent a segfault when we call a function that uses NumPy API.
-  import_array();
+  import_array1(NULL);
 
   // Create the Quat class in the pyquat module.
   Py_INCREF(&pyquat_QuatType);
