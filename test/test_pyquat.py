@@ -8,6 +8,18 @@ from .context import pq
 
 PLOT = False
 
+def valenti_big_omega(w):
+    W = np.array([[ 0.0,   w[0],  w[1],  w[2]],
+                  [-w[0],  0.0,  -w[2],  w[1]],
+                  [-w[1],  w[2],  0.0,  -w[0]],
+                  [-w[2], -w[1],  w[0],  0.0]])
+    return W
+
+def valenti_propagate_additively(q, w, dt):
+    qdot = valenti_big_omega(w).dot(q.to_vector())*0.5
+    return pq.Quat(*(q.to_vector() - qdot*dt))
+
+
 class TestPyquat(QuaternionTest):
     """Tests basic functionality on pyquat and the pyquat Quaternion type 'Quat' written in C"""
 
@@ -206,11 +218,11 @@ class TestPyquat(QuaternionTest):
         T1   = np.identity(3) - Tdot * dt # dT = (I - [phi x])
         qT1  = pq.from_matrix(T1)
         self.assert_almost_equal(q1, qT1)
-
+        
         # Compare to the additive result
         q4 = pq.propagate_additively(q0, w0, dt)
         self.assert_almost_equal(q4, qT1)
-
+        
         # Compare to the matrix propagation
         # Note: Matrix propagation is new and I'm not totally sure it's
         # correct yet, so this just verifies that it looks reasonable.
@@ -229,6 +241,19 @@ class TestPyquat(QuaternionTest):
         T0r4 = pq.matrix_propagate(T0, np.zeros(3), dt, r=4)
         np.testing.assert_equal(T0, T0r4)
 
+
+    def test_qdot_inversion(self):
+        dt = 0.1
+        w0 = np.array([[3.0, 2.0, 1.0]]).T
+        q0 = pq.Quat(1.0, 2.0, 3.0, 4.0).normalized()
+        # Compare to the additive result
+        q1 = pq.propagate_additively(q0, w0, dt)
+        q2 = valenti_propagate_additively(q0, w0, dt)
+        self.assert_almost_equal(q1, q2)
+        import pdb
+        pdb.set_trace()
+        
+        
     def test_0_propagate(self):
         """Quaternion propagation with a 0 angular velocity does not lead to a zero division
         """
@@ -453,8 +478,6 @@ class TestPyquat(QuaternionTest):
         mixed = q1.slerp(q2, 0.5, lerp_threshold = 0.9)
         self.assert_equal(lerp, mixed)
         self.assert_not_equal(lerp, slerp)
-       
-    
 
     def test_rotate(self):
         """Rotation of a vector using a quaternion is equivalent to standard matrix-vector multiplication over many random test quaternions and vectors (to 14 decimal places)"""
