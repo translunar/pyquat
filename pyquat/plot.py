@@ -1,4 +1,4 @@
-import numpy
+import numpy as np
 import matplotlib.pyplot
 from mpl_toolkits.mplot3d import Axes3D
 
@@ -31,10 +31,11 @@ def scatter(q_ary, rotate_axis='x', fig = None, axes = None, **kwargs):
 
     return axes.scatter(ary[0,:], ary[1,:], ary[2,:], **kwargs)
 
+
 def plot(q_ary, t = None, rotate_axis='x', fig = None, axes = None, **kwargs):
     """
     Plot an array of quaternions using lines on the surface of a sphere.
-    
+
     Optionally, you can provide a t argument to plot as a timeseries,
     where the lowest t is displayed red, and the highest t is
     displayed blue.
@@ -46,7 +47,7 @@ def plot(q_ary, t = None, rotate_axis='x', fig = None, axes = None, **kwargs):
     if axes is None:
         axes = fig.add_subplot(111, projection='3d')
 
-    ary = prepare_quaternion_array_for_plotting(q_ary, rotate_axis = rotate_axis)
+    ary = prepare_quaternion_array_for_plotting(q_ary, rotate_axis=rotate_axis)
 
     if t is not None:
         tc = (t - t.min()) / (t.max() - t.min())
