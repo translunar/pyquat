@@ -44,16 +44,19 @@ def attitude_profile_matrix(q           = None,
                             ref         = None,
                             weights     = None):
 
-    """
-    "There exists a unique orthogonal matrix A which satisfies
+    """"There exists a unique orthogonal matrix A which satisfies
    
-       A = \hat{r}_i \hat{s}_i for i in (1,2,3)
+       A \hat{r}_i = \hat{s}_i for i in (1,2,3)
 
     which is given by
 
-       A = \sum_{i=1}^{3} \hat{s}_i \hat{r}_i^\T
+       A = \sum_{i=1}^{3} \hat{s}_i \hat{r}_i^\top
     
-    " [0] and is called the attitude profile matrix.
+    " [0] and is called the attitude profile matrix. Note that
+    observation vector \hat{s}_i is 3x1 and reference vector
+    \hat{r}_i^\top is 1x3 in the above. Also permitted is a weight on
+    each vector observation describing the relative precision of the
+    sensor which provided it; see Eq. 5 from [1] and Eq. 10 from [2].
 
     Compute the attitude profile matrix B using either vector
     observations and reference vectors or a quaternion and 3x3
@@ -61,10 +64,20 @@ def attitude_profile_matrix(q           = None,
 
     weights should be positive and sum to 1.0.
 
-    Reference:
-    [0] Shuster, Oh. 1981. Three-axis attitude determination from 
-        vector observations. Journal of Guidance and Control 4(1): 
-        70-77.
+    References:
+
+    [0] Shuster, Oh. 1981. Three-axis attitude determination from
+        vector observations. Journal of Guidance and Control 4(1):
+        70--77.
+
+    [1] Mortari. 1997. ESOQ-2 single-point algorithm for fast optimal
+        spacecraft attitude determination. In Advances in the
+        Astronautical Sciences.
+
+    [2] Ainscough, Zanetti, Christian, Spanos. 2015. Q-Method extended
+        Kalman filter. Journal of Guidance, Control, and Dynamics
+        38(4): 752--760.
+
     """
     if q is not None:
         if inverse_cov is None:
@@ -85,15 +98,25 @@ def attitude_profile_matrix(q           = None,
     B = np.zeros((3,3))
     for ii in range(0, n):
         B += np.dot(obs[0:3,ii].reshape((3,1)), ref[0:3,ii].reshape((1,3))) * weights[ii]
-
+        
     return B
 
-def davenport_matrix(B = None,  **attitude_profile_kwargs):
-    """
-    Compute the Davenport matrix for a given attitude profile.
+def davenport_matrix(B = None, qekf = False, **attitude_profile_kwargs):
+    """Compute the Davenport matrix for a given attitude profile.
     Accepts either an attitude profile matrix or the arguments
     for the attitude_profile_matrix() function. Returns a 4x4
     Davenport matrix K.
+
+    If the qekf argument is True, this uses the q-method extended
+    Kalman filter method, which produces a slightly different K.
+    See Eqs. 10--11 in [0] for details.
+
+    Reference:
+
+    [0] Ainscough, Zanetti, Christian, Spanos. 2015. Q-Method extended
+        Kalman filter. Journal of Guidance, Control, and Dynamics
+        38(4): 752--760.    
+
     """
 
     if B is None:
@@ -104,8 +127,14 @@ def davenport_matrix(B = None,  **attitude_profile_kwargs):
     zx = B.T - B
     z  = np.array([[zx[2,1]], [zx[0,2]], [zx[1,0]]])
 
-    K = np.vstack((np.hstack((np.array([[mu]]), z.T)),
-                   np.hstack((z, S - np.identity(3)*mu))))
+    if qekf:
+        M = S - np.identity(3) * (2*mu)
+        upperleft = 0.0
+    else:
+        M = S - np.identity(3) * mu
+        upperleft = mu
+    K = np.vstack((np.hstack((np.array([[upperleft]]), z.T)),
+                   np.hstack((z,                       M))))
     return K
 
 def lambda_nr_iterate(lambda_c, b, c, d):

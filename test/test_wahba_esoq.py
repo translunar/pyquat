@@ -37,7 +37,7 @@ class TestWahbaESOQ(QuaternionTest):
         np.testing.assert_array_equal(K1, K2)
 
     def test_davenport_matrix(self):
-        """davenport_matrix() called on the output of attitude_profile_matrix() produces a matrix of the correct shape"""
+        """davenport_matrix() called on the output of attitude_profile_matrix() produces a valid Davenport K matrix"""
         ref = np.array([[1.0, 0.0],
                         [0.0, 0.0],
                         [0.0, 1.0]])
@@ -48,6 +48,13 @@ class TestWahbaESOQ(QuaternionTest):
         K = pq_esoq.davenport_matrix(B)
         self.assertEqual(K.shape[0], 4)
         self.assertEqual(K.shape[1], 4)
+
+        # Test qekf davenport matrix
+        K_qekf = pq_esoq.davenport_matrix(B, qekf = True)
+        self.assertEqual(K_qekf[0,0], 0.0)
+        np.testing.assert_equal(K_qekf[0,1:3], K[0,1:3])
+        for ii in range(0,3):
+            self.assertNotEqual(K_qekf[ii,ii], K[ii,ii])
 
     def test_davenport_eigenvalues(self):
         """davenport_eigenvalues() produces eigenvalues in the appropriate range"""
