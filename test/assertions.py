@@ -2,8 +2,7 @@ import unittest
 import numpy as np
 import math
 
-from .context import pq
-from .context import pq_esoq
+from .context import pq, esoq, wahba
 
 class QuaternionTest(unittest.TestCase):
     def assert_almost_equal_components(self, q1, q2, **kwargs):
@@ -65,11 +64,11 @@ class QuaternionTest(unittest.TestCase):
         """
 
         # First, compute the quaternion mapping the ref frame to the obs frame.
-        B = pq_esoq.attitude_profile_matrix(obs = obs, ref = ref)
-        irot = pq_esoq.sequential_rotation(B)
-        K = pq_esoq.davenport_matrix(B)
-        q, loss = pq_esoq.esoq2(K, n_obs = 2)
-        q_ref_to_obs = pq_esoq.sequential_rotation(q = q, irot = irot)
+        B = wahba.attitude_profile_matrix(obs = obs, ref = ref)
+        irot = esoq.sequential_rotation(B)
+        K = wahba.davenport_matrix(B)
+        q, loss = esoq.esoq2(K, B, n_obs = 2)
+        q_ref_to_obs = esoq.sequential_rotation(q = q, irot = irot)
 
         T_ref_to_obs = q_ref_to_obs.to_matrix()
 

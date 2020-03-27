@@ -10,8 +10,8 @@ import os
 import numpy
 
 MAJOR = 0
-MINOR = 3
-TINY  = 3
+MINOR = 4
+TINY  = 0
 version='%d.%d.%d' % (MAJOR, MINOR, TINY)
 
 c_quat = Extension('_pyquat',
@@ -25,8 +25,8 @@ setup(name='pyquat',
       version=version,
       description='Python C quaternion type for fast attitude and rotation computations',
       author='John O. Woods, Ph.D.',
-      author_email='john.woods@intuitivemachines.com',
-      url='http://github.com/mohawkjohn/pyquat/',
+      author_email='john@openlunar.org',
+      url='http://github.com/openlunar/pyquat/',
       download_url='https://github.com/mohawkjohn/pyquat/archive/v' + version + '.tar.gz',
       include_package_data=True,
       packages=['pyquat', 'pyquat.wahba'],
@@ -65,5 +65,5 @@ setup(name='pyquat',
           'Programming Language :: Python :: Implementation :: CPython'
       ],
       keywords=['quaternion', 'math', 'maths', 'graphics', 'physics', 'orientation', 'attitude', 'pose', 'geometry', 'visualization', 'visualisation', 'animation', 'game development', 'simulation'],
-      install_requires=['numpy']
+      install_requires=['numpy', 'scipy']
     )

@@ -1,6 +1,6 @@
 import unittest
 from test import test_pyquat, test_random
-from test import test_wahba_esoq, test_wahba_valenti
+from test import test_wahba_esoq, test_wahba_valenti, test_wahba_qmethod
 
 def pyquat_test_suite():
     """
@@ -13,6 +13,7 @@ def pyquat_test_suite():
     suite.addTests(loader.loadTestsFromModule(test_random))
     suite.addTests(loader.loadTestsFromModule(test_wahba_esoq))
     suite.addTests(loader.loadTestsFromModule(test_wahba_valenti))
+    suite.addTests(loader.loadTestsFromModule(test_wahba_qmethod))
 
     return suite
 

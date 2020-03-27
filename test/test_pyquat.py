@@ -1,8 +1,6 @@
 import numpy as np
 from scipy import linalg
 from test.assertions import QuaternionTest
-import math
-import unittest
 
 from .context import pq
 
@@ -81,7 +79,7 @@ class TestPyquat(QuaternionTest):
 
     def test_small_rotation_vector(self):
         """Construction directly from a small rotation vector produces the same quaternion as conversion of a rotation vector to a matrix and then to a quaternion"""
-        v = np.zeros((3,1)) * 3.0 / math.sqrt(3.0)
+        v = np.zeros((3,1)) * 3.0 / np.sqrt(3.0)
         q = pq.Quat.from_rotation_vector(v)
         self.assert_equal(q, pq.identity())
         T = pq.rotation_vector_to_matrix(v)
@@ -155,7 +153,7 @@ class TestPyquat(QuaternionTest):
                   -2.2751942430616868e+256)
         v0 = q0.to_vector()
         v1 = v0 / q_max
-        v1_mag = math.sqrt(v1[0,0]**2 + v1[1,0]**2 + v1[2,0]**2 + v1[3,0]**2)
+        v1_mag = np.sqrt(v1[0,0]**2 + v1[1,0]**2 + v1[2,0]**2 + v1[3,0]**2)
         v2 = v1 / v1_mag
         q1 = pq.Quat(v2[0], v2[1], v2[2], v2[3]) 
         q2 = q0.normalized_large()
@@ -304,7 +302,7 @@ class TestPyquat(QuaternionTest):
         
         q0 = pq.Quat(1.0, 2.0, 3.0, 4.0).normalized()
         
-        w = np.array([[-1.0, -3.0, -4.0]]).T * (math.pi / 180.0)
+        w = np.array([[-1.0, -3.0, -4.0]]).T * (np.pi / 180.0)
         
         dt_small = 0.001
         dt_large = 0.1
@@ -396,8 +394,8 @@ class TestPyquat(QuaternionTest):
 
         # Check that each input is 22.5 degrees from the output
         q3n = q3.normalized()
-        self.assertAlmostEqual(math.acos(q3n.dot(q2)) * 180.0 / math.pi, 22.5)
-        self.assertAlmostEqual(math.acos(q3n.dot(q1)) * 180.0 / math.pi, 22.5)
+        self.assertAlmostEqual(np.arccos(q3n.dot(q2)) * 180.0 / np.pi, 22.5)
+        self.assertAlmostEqual(np.arccos(q3n.dot(q1)) * 180.0 / np.pi, 22.5)
 
         # Check that q1 lerped with itself gives itself.
         q4 = q1.lerp(q1.copy(), 1.0)
@@ -424,8 +422,8 @@ class TestPyquat(QuaternionTest):
         self.assertAlmostEqual(q3.dot(q1), q3.dot(q2))
 
         # Check that each input is 22.5 degrees from the output
-        self.assertAlmostEqual(math.acos(q3.dot(q2)) * 180.0 / math.pi, 22.5)
-        self.assertAlmostEqual(math.acos(q3.dot(q1)) * 180.0 / math.pi, 22.5)
+        self.assertAlmostEqual(np.arccos(q3.dot(q2)) * 180.0 / np.pi, 22.5)
+        self.assertAlmostEqual(np.arccos(q3.dot(q1)) * 180.0 / np.pi, 22.5)
 
         # Check that q1 lerped with itself gives itself.
         q4 = q1.slerp(q1.copy(), 1.0)
@@ -528,6 +526,14 @@ class TestPyquat(QuaternionTest):
             for ii in range(0, len(x)):
                 ax.scatter([x[ii], x[ii], x[ii], x[ii]], f[ii].to_vector(), s=2)
             plt.show()
+
+    def test_Xi(self):
+        """Xi matrix construction"""
+        q = pq.Quat(1.0, 2.0, -3.0, 4.0).normalized()
+        Xi = q.big_xi()
+        qv = np.array([q.x, q.y, q.z])
+        np.testing.assert_equal(Xi[0,0:3], -qv)
+        np.testing.assert_equal(Xi[1:4,0:3], np.identity(3) * q.w + pq.skew(qv))
         
         
 if __name__ == '__main__':

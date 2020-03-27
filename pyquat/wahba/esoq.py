@@ -16,18 +16,33 @@ from scipy import linalg
 from math import sqrt, pi, cos, acos
 
 def trace_adj(a):
+    """Returns the trace of the adjunct of matrix a, which must be 3x3 or 4x4."""
     if max(a.shape) == 3:
         c1 = a[1,1] * a[2,2] - a[1,2] * a[2,1]
         c2 = a[0,0] * a[2,2] - a[0,2] * a[2,0]
         c3 = a[0,0] * a[1,1] - a[0,1] * a[1,0]
         return c1 + c2 + c3
     else:
-        return minor_det_3x3(a, 0, 1, 2) + minor_det_3x3(a, 0, 2, 3) + minor_det_3x3(a, 1, 2, 3) + minor_det_3x3(a, 0, 1, 3)
+        return minor_det_4x4(a, 0, 1, 2) + minor_det_4x4(a, 0, 2, 3) + minor_det_4x4(a, 1, 2, 3) + minor_det_4x4(a, 0, 1, 3)
 
-def minor_det_3x3(a, i = 0, j = 1, k = 2):    
+def minor_det_4x4(a, i = 0, j = 1, k = 2):
+    """Returns the determinant of a minor of a 4x4 matrix.
+
+    Args:
+        a      matrix whose minor we're interested in
+        i,j,k  rows/columns to include in the determinant calculation (e.g.,
+               if 0, 1, and 2 are supplied, the determinant will be of the
+               upper left-hand submatrix)
+
+    Returns:
+        A Float giving the determinant of the indicated 3x3 submatrix.
+        
+    """
     return a[i,i] * (a[j,j]*a[k,k] - a[j,k]*a[k,j]) - a[i,j] * (a[j,i]*a[k,k] - a[j,k]*a[k,i]) + a[i,k] * (a[j,i]*a[k,j] - a[j,j]*a[k,i])
 
 def trace_adj_symm(a):
+    """Returns the trace of the adjunct of a symmetric matrix a, which
+    must be 3x3 or 4x4."""
     if max(a.shape) == 3:
         c1 = a[1,1] * a[2,2] - a[1,2]**2
         c2 = a[0,0] * a[2,2] - a[0,2]**2
@@ -35,107 +50,7 @@ def trace_adj_symm(a):
         return c1 + c2 + c3
     else:
         return trace_adj(a)
-    
 
-def attitude_profile_matrix(q           = None,
-                            cov         = None,
-                            inverse_cov = None,
-                            obs         = None,
-                            ref         = None,
-                            weights     = None):
-
-    """"There exists a unique orthogonal matrix A which satisfies
-   
-       A \hat{r}_i = \hat{s}_i for i in (1,2,3)
-
-    which is given by
-
-       A = \sum_{i=1}^{3} \hat{s}_i \hat{r}_i^\top
-    
-    " [0] and is called the attitude profile matrix. Note that
-    observation vector \hat{s}_i is 3x1 and reference vector
-    \hat{r}_i^\top is 1x3 in the above. Also permitted is a weight on
-    each vector observation describing the relative precision of the
-    sensor which provided it; see Eq. 5 from [1] and Eq. 10 from [2].
-
-    Compute the attitude profile matrix B using either vector
-    observations and reference vectors or a quaternion and 3x3
-    attitude error covariance.
-
-    weights should be positive and sum to 1.0.
-
-    References:
-
-    [0] Shuster, Oh. 1981. Three-axis attitude determination from
-        vector observations. Journal of Guidance and Control 4(1):
-        70--77.
-
-    [1] Mortari. 1997. ESOQ-2 single-point algorithm for fast optimal
-        spacecraft attitude determination. In Advances in the
-        Astronautical Sciences.
-
-    [2] Ainscough, Zanetti, Christian, Spanos. 2015. Q-Method extended
-        Kalman filter. Journal of Guidance, Control, and Dynamics
-        38(4): 752--760.
-
-    """
-    if q is not None:
-        if inverse_cov is None:
-            inverse_cov = linalg.inv(cov)
-
-        tr = np.trace(inverse_cov)
-        return np.dot(np.identity(3) * tr * 0.5 - inverse_cov, q.to_matrix())
-
-    # If we get this far, q was not provided; instead we're dealing with
-    # vector observations.
-
-    # Make sure we have a weights vector since this is a weighted least
-    # squares problem.
-    n = obs.shape[1]
-    if weights is None:
-        weights = np.ones(n) / float(n)
-
-    B = np.zeros((3,3))
-    for ii in range(0, n):
-        B += np.dot(obs[0:3,ii].reshape((3,1)), ref[0:3,ii].reshape((1,3))) * weights[ii]
-        
-    return B
-
-def davenport_matrix(B = None, qekf = False, **attitude_profile_kwargs):
-    """Compute the Davenport matrix for a given attitude profile.
-    Accepts either an attitude profile matrix or the arguments
-    for the attitude_profile_matrix() function. Returns a 4x4
-    Davenport matrix K.
-
-    If the qekf argument is True, this uses the q-method extended
-    Kalman filter method, which produces a slightly different K.
-    See Eqs. 10--11 in [0] for details.
-
-    Reference:
-
-    [0] Ainscough, Zanetti, Christian, Spanos. 2015. Q-Method extended
-        Kalman filter. Journal of Guidance, Control, and Dynamics
-        38(4): 752--760.    
-
-    """
-
-    if B is None:
-        B  = attitude_profile_matrix(**attitude_profile_kwargs)
-    
-    S  = B + B.T
-    mu = np.trace(B)
-    zx = B.T - B
-    z  = np.array([[zx[2,1]], [zx[0,2]], [zx[1,0]]])
-
-    if qekf:
-        M = S - np.identity(3) * (2*mu)
-        upperleft = 0.0
-    else:
-        M = S - np.identity(3) * mu
-        upperleft = mu
-    K = np.vstack((np.hstack((np.array([[upperleft]]), z.T)),
-                   np.hstack((z,                       M))))
-    return K
 
 def lambda_nr_iterate(lambda_c, b, c, d):
     l2 = lambda_c**2
@@ -145,8 +60,7 @@ def lambda_nr_iterate(lambda_c, b, c, d):
 
 
 def sequential_rotation(B = None, q = None, irot = None):
-    """
-    "It is noted without proof that a rotation through an angle
+    """"It is noted without proof that a rotation through an angle
     greater than \frac{\pi}{2} can be expressed as a rotation
     through \pi about one of the coordinate axes followed by a
     rotation about a new axis through an angle less than 
@@ -186,9 +100,9 @@ def sequential_rotation(B = None, q = None, irot = None):
        rotation to perform, performs the rotation, and returns
        irot.
 
-    This method produces a sequential rotation of the attitude
-    profile matrix B and returns the rotation performed. It is
-    indifferent to the angle of rotation.
+    This method produces an *in-place* sequential rotation of the
+    attitude profile matrix B and returns the rotation performed. It
+    is indifferent to the angle of rotation.
 
     Note: pyquat uses a different quaternion ordering than Shuster 
     & Oh.
@@ -197,6 +111,7 @@ def sequential_rotation(B = None, q = None, irot = None):
     [0] Shuster, Oh. 1981. Three-axis attitude determination from 
         vector observations. Journal of Guidance and Control 4(1): 
         70-77.
+
     """
     import pyquat as pq
     
@@ -224,36 +139,42 @@ def sequential_rotation(B = None, q = None, irot = None):
             return B
         
 
-def davenport_eigenvalues(K = None, B = None, tr_B = None, tr_adj_K = None, tr_K = None, S = None, z = None, n_obs = None):
+def davenport_eigenvalues(K, B, n_obs = None):
     """
-    Returns the sorted eigenvalues of the Davenport K matrix.
+    Compute the eigenvalues of the Davenport matrix K.
 
     Assumes sequential rotation has already been applied.
 
     Take careful note that you should pass n_obs = 2 if you only have
     two observations making up your attitude profile matrix B.
 
-    Source:
-        Mortari (1997). ESOQ-2 single-point algorithm for fast
+    Reference:
+
+    [0] Mortari (1997). ESOQ-2 single-point algorithm for fast
         optimal spacecraft attitude determination. Advances in the
         Astronautical Sciences 95: 817-826.
 
-    """
-    if tr_adj_K is None:
-        tr_adj_K = trace_adj(K)
-    if tr_B is None:
-        tr_B = K[0,0]
-    if S is None:
-        S = B+B.T
-    tr_adj_S = trace_adj_symm(S)
-    if z is None:
-        z = K[1:4,0].reshape((3,1))
+    Args:
+        K      Davenport matrix (4x4)
+        B      attitude profile matrix (3x3)
+        n_obs  number of observations involved in computing B (optional
+               unless you only have 2, in which case this needs to be
+               provided)
 
-    if tr_K is None:
-        a = np.trace(K)
-    else:
-        a = tr_K
-        
+    Returns:
+        The sorted eigenvalues of the Davenport K matrix.
+
+    """
+    tr_adj_K = trace_adj(K)
+    tr_B     = np.trace(B)
+    S        = B+B.T
+    tr_adj_S = trace_adj_symm(S)
+    z        = K[1:4,0].reshape((3,1))
+
+    # a never actually gets used, so we won't compute it, but note
+    # here that this is what it ought to be.
+
+    # a = np.trace(K)
     b = -2.0 * tr_B**2 + tr_adj_S - np.dot(z.T, z)[0,0]
     d = linalg.det(K)
 
@@ -284,7 +205,7 @@ def davenport_eigenvalues(K = None, B = None, tr_B = None, tr_adj_K = None, tr_K
 
 
 def esoq2(K,
-          B        = None,
+          B,
           lambda_0 = None,
           n_obs    = None):
     """
@@ -300,8 +221,17 @@ def esoq2(K,
         Astronautical Sciences, 4--7 Aug, Sun Valley, Idaho, 
         pp. 817--826.
 
-    Returns the optimal attitude and the final value of the loss function
-    from Wahba's problem as a tuple.
+    Args:
+        K          Davenport matrix (4x4)
+        B          attitude profile matrix (3x3)
+        lambda_0   optional initial guess about maximum eigenvalue (default
+                   is to set this equal to n_obs)
+        n_obs      optional number of observations involved in computing B
+
+    Returns:
+        A tuple of the optimal quaternion (corresponding to the maximum
+    eigenvalue), which has been normalized; and the value of the loss
+    function from Wahba's problem.
 
     """
     import pyquat as pq
@@ -309,17 +239,11 @@ def esoq2(K,
     if lambda_0 is None: # Initial guess for maximum eigenvalue
         lambda_0 = float(n_obs)
 
-    tr_B = K[0,0]
+    tr_B = np.trace(B)
     z    = K[1:4,0].reshape((3,1))
+    S    = B+B.T
 
-    # Note: This uses the S definition from Christian and Lightsey (2010).
-    # The one from Mortari is S_minus_tpl.
-    if B is None:
-        S    = K[1:4,1:4] + np.identity(3)*tr_B
-    else:
-        S    = B+B.T
-
-    lambdas = davenport_eigenvalues(K, tr_B, S = S, z = z, n_obs = n_obs)
+    lambdas = davenport_eigenvalues(K, B, n_obs = n_obs)
     lambda_max = lambdas[0]
     loss = lambda_0 - lambda_max
 

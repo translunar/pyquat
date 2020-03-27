@@ -20,6 +20,7 @@ static void      to_matrix(pyquat_Quat* q, double* T);
 static PyObject* pyquat_Quat_to_matrix(PyObject* self);
 static PyObject* pyquat_Quat_to_unit_vector(PyObject* self, PyObject* args);
 static PyObject* pyquat_Quat_to_vector(PyObject* self);
+static PyObject* pyquat_Quat_to_big_xi_matrix(PyObject* self);
 static PyObject* pyquat_Quat_copy(PyObject* self);
 static PyObject* pyquat_identity(PyObject* self);
 static int       pyquat_Quat_compare(PyObject* left, PyObject* right);
@@ -138,11 +139,13 @@ static int not_double_nx1_or_length_n(PyArrayObject* m, int n) {
 
 
 static PyMethodDef pyquat_methods[] = {
+  /* pyquat namespace */				     
   {"identity", (PyCFunction)pyquat_identity, METH_NOARGS, "create an identity quaternion (1.0, 0.0, 0.0, 0.0)"},
   {"rotation_vector_to_matrix", (PyCFunction)pyquat_rotation_vector_to_matrix, METH_VARARGS, "convert a rotation vector directly to a directed-cosine matrix, skipping the quaternion"},
   {"big_omega", (PyCFunction)pyquat_big_omega, METH_VARARGS, "compute the 4x4 Omega matrix for some angular velocity"},
   {"skew", (PyCFunction)pyquat_skew, METH_VARARGS, "compute the 3x3 cross-product (skew symmetric) matrix for some vector"},
   {"expm", (PyCFunction)pyquat_expm, METH_VARARGS, "compute the 4x4 matrix exponential for quaternion propagation for some angular velocity and time step"},
+  /* pyquat.wahba.valenti namespace */
   {"valenti_q_mag", (PyCFunction)pqw_valenti_q_mag, METH_O, "compute a quaternion mapping from a z-down frame to an x-magnetic-north/z-down frame"},
   {"valenti_q_acc", (PyCFunction)pqw_valenti_q_acc, METH_O, "compute a quaternion mapping from an arbitrary unknown frame to a z-down frame"},
   {"valenti_dq_mag", (PyCFunction)pqw_valenti_dq_mag, METH_O, "compute a correction quaternion mapping from a z-down frame to an x-magnetic-north/z-down frame"},
@@ -184,6 +187,7 @@ static PyMethodDef pyquat_Quat_methods[] = {
   {"slerp", (PyCFunction)pyquat_Quat_slerp, METH_VARARGS | METH_KEYWORDS, "spherical linear interpolation or linear interpolation between two quaternions depending on whether the dot product exceeds the parameter 'lerp_threshold'"},
   {"dot", (PyCFunction)pyquat_Quat_dot, METH_VARARGS, "dot product of two quaternions as if they are 4D vectors"},
   {"rotate", (PyCFunction)pyquat_Quat_rotate, METH_VARARGS, "rotate a vector"},
+  {"big_xi", (PyCFunction)pyquat_Quat_to_big_xi_matrix, METH_NOARGS, "build a Xi matrix"},
   {NULL, NULL, 0, NULL}  /* Sentinel */
 };
 
@@ -786,6 +790,55 @@ static void from_matrix(pyquat_Quat* q, double* T) {
 }
 
 
+/** @brief Helper function for pyquat_big_xi() */
+static void to_big_xi(pyquat_Quat* q, double* Xi) {
+  // scalar row
+  Xi[0]  = -q->v[0];
+  Xi[1]  = -q->v[1];
+  Xi[2]  = -q->v[2];
+
+  // vector portion
+  Xi[3]  =  q->s;
+  Xi[4]  = -q->v[2];
+  Xi[5]  =  q->v[1];
+
+  Xi[6]  =  q->v[2];
+  Xi[7]  =  q->s;
+  Xi[8]  = -q->v[0];
+
+  Xi[9]  = -q->v[1];
+  Xi[10] =  q->v[0];
+  Xi[11] =  q->s;
+}
+
+
+/** @brief Create a Xi matrix from a quaternion.
+ *
+ * See Eq. 307 in [1], originally from [0].
+ *
+ * References:
+ *
+ * [0] Cayley, A. 1843. On the motion of rotation of a solid
+ *     body. Cambridge Mathematics Journal 3(1843): 224-232.
+ *
+ * [1] Shuster, M. 1993. A survey of attitude representations.
+ *     Journal of the Astronautical Sciences 41(4): 439-519.
+ **/
+static PyObject* pyquat_Quat_to_big_xi_matrix(PyObject* self) {
+  npy_intp dims[2] = {4,3};
+  
+  pyquat_Quat* q = (pyquat_Quat*)(self);
+
+  PyArrayObject* ary = (PyArrayObject*)PyArray_SimpleNew(2, dims, NPY_DOUBLE);
+  Py_CheckAlloc(ary);
+
+  double* Xi = (double*)ary->data;
+  to_big_xi(q, Xi);
+
+  return (PyObject*)ary;
+}
+
+
 
 static PyObject* pyquat_Quat_to_matrix(PyObject* self) {
   npy_intp dims[2] = {3,3};
@@ -1028,6 +1081,7 @@ static PyObject* pyquat_big_omega(PyObject* self, PyObject* args) {
 
   return NULL;
 }
+
 
 
 /* Closed-form matrix exponential for an angular velocity and time step */
