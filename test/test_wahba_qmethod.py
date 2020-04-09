@@ -54,12 +54,23 @@ class TestWahbaQMethod(QuaternionTest):
             P_prior = np.identity(3) * np.pi**2
             N_prior = spl.inv(P_prior)
 
-            
-            q = qmethod.qmethod(pq.identity(), N_prior,
-                                np.vstack((sun_obs, mag_obs)).T,
-                                np.vstack((sun_ref, mag_ref)).T,
-                                sigma_y = [1e-2, 1e-2],
-                                sigma_n = [1e-2, 1e-2])
-            
-            dq_body = qib * q.conjugated()
-            self.assertLess(np.abs(np.arccos(dq_body.w)), 1e-4)
+
+            # Assemble arguments to pass to qmethod()
+            sigma_y = [1e-2, 1e-2]
+            sigma_n = [1e-2, 1e-2]
+            weights = qmethod.compute_weights(sigma_y, sigma_n)
+            qmethod_args = (np.vstack((sun_obs, mag_obs)).T,
+                            np.vstack((sun_ref, mag_ref)).T,
+                            weights)            
+
+            # Test qmethod with priors
+            q_posterior = qmethod.qmethod(*qmethod_args,
+                                          q_prior = pq.identity(),
+                                          N_prior = N_prior)
+
+            # Test qmethod without priors
+            q_naive     = qmethod.qmethod(*qmethod_args)
+
+            for q in (q_posterior, q_naive):
+                dq_body = qib * q.conjugated()
+                self.assertLess(np.abs(np.arccos(dq_body.w)), 1e-4)

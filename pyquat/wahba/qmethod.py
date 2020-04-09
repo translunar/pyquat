@@ -23,15 +23,15 @@ import pyquat as pq
 from pyquat.wahba import attitude_profile_matrix
 from pyquat.wahba import davenport_matrix
 
-def measurement_model(T, y, n, w):
+def qekf_measurement_model(T, y, n, w):
     """Generate a weighted least squares measurement model.
 
     This is eq. 18 from [2].
 
     Args:
         T   3x3 rotation matrix describing the prior attitude
-        y   3xn matrix of unit 3D vector observations
-        n   3xn matrix of corresponding unit 3D reference vectors
+        y   3xm matrix of unit 3D vector observations
+        n   3xm matrix of corresponding unit 3D reference vectors
         w   list of weights corresponding to y and n
 
     Returns:
@@ -67,7 +67,7 @@ def quest_measurement_covariance(vector, sigma):
     return (np.identity(3) - vector[0:3].reshape((3, 1)).dot(vector[0:3].reshape((1,3)))) * sigma
 
 
-def measurement_covariance(T, y, n, w, sigma_y, sigma_n):
+def qekf_measurement_covariance(T, y, n, w, sigma_y, sigma_n):
     """Generate a measurement covariance for the z vector by computing
     measurement covariances on the observations and reference vectors.
 
@@ -93,8 +93,8 @@ def measurement_covariance(T, y, n, w, sigma_y, sigma_n):
 
     Args:
         T        transformation matrix describing the prior attitude
-        y        3xn matrix of unit vector observations
-        n        3xn matrix of corresponding unit reference vectors
+        y        3xm matrix of unit vector observations
+        n        3xm matrix of corresponding unit reference vectors
         a        array of measurement weights corresponding to y and n
         sigma_y  array of standard deviations for each unit vector observation
         sigma_n  array of standard deviations for each unit reference vector
@@ -144,46 +144,69 @@ def compute_weights(sigma_y, sigma_n):
     return np.array(w)
 
         
-def qmethod(q_prior, N_prior, y, n, sigma_y, sigma_n):
+def qmethod(y, n,
+            w       = None,
+            sigma_y = None,
+            sigma_n = None,
+            q_prior = None,
+            N_prior = None):
     """Runs Davenport's q-Method as described in [2], using priors as
     needed for a SOAR filter or qEKF. It produces a normalized quaternion
     corresponding to the largest eigenvalue of the Davenport matrix.
 
     See p. 5 in [2] for additional details.
 
+    You can provide either weights w or sigmas sigma_y and sigma_n.
+    Weights are computed from the latter two using compute_weights()
+    if weights are not supplied.
+
     Args:
-        q_prior  prior attitude
+        y        3xm matrix of 3D unit vector observations
+        n        3xm matrix of corresponding 3D unit reference vectors 
+
+    Kwargs:
+        w        weights corresponding to each of the m entries of y 
+                 and n; can also be computed from sigma_y and sigma_n
+                 if those are supplied instead
+        sigma_y  sigmas corresponding to each of the m entries in y
+        sigma_n  sigmas corresponding to each of the m entries in n
+        q_prior  prior attitude, if any
         N_prior  prior information matrix (3x3); this is also the
-                 inverse of the prior covariance matrix
-        y        3xn matrix of 3D unit vector observations
-        n        3xn matrix of corresponding 3D unit reference vectors 
-        sigma_y  sigmas corresponding to each of the n entries in y
-        sigma_n  sigmas corresponding to each of the n entries in n
+                 inverse of the prior covariance matrix (you must
+                 provide this if you provide q_prior)
 
     Returns:
         A normalized quaternion.
 
     """
-    T = q_prior.to_matrix()
-    w = compute_weights(sigma_y, sigma_n)
-    H = measurement_model(T, y, n, w)
+    if q_prior is None:
+        T = np.identity(3)
+        q_prior = pq.identity()
 
-    # Compute the covariance of the vectors which are orthogonal to
-    # the observations and references.
-    Rzz = measurement_covariance(T, y, n, w, sigma_y, sigma_n)
+        if N_prior is not None:
+            raise ValueError("expected prior attitude to be given with prior information")
+    else:
+        T = q_prior.to_matrix()
+
+        if N_prior is None:
+            raise ValueError("expected prior information to be given with prior attitude")
+
+    if w is None:
+        w = compute_weights(sigma_y, sigma_n)
 
     B = attitude_profile_matrix(obs = y, ref = n, weights = w)
     K = davenport_matrix(B, covariance_analysis = True)
 
-    # A0 is twice the inverse covariance.
-    A0 = N_prior * 2
+    if N_prior is not None:
+        # A0 is twice the inverse covariance.
+        A0 = N_prior * 2
 
-    # "Condition" K on the prior attitude and prior information
-    Xi_prior = q_prior.big_xi()
-    K_conditioned = K - Xi_prior.dot(A0.dot(Xi_prior.T))
+        # "Condition" K on the prior attitude and prior information
+        Xi_prior = q_prior.big_xi()
+        K -= Xi_prior.dot(A0.dot(Xi_prior.T))        
 
     # Get eigenvalues and eigenvectors
-    lam, v = spl.eig(K_conditioned)
+    lam, v = spl.eig(K)
     ii = np.argmax(lam) # find the largest eigenvalue
 
     return pq.Quat(*v[:,ii]).normalized()
