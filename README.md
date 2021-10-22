@@ -27,6 +27,7 @@ pyquat is a Python C extension providing quaternions and functions relating to s
 
 ## License
 
-Copyright 2016--2017 John O. Woods, Ph.D., and Intuitive Machines.
+Copyright 2016--2021 Juno Woods, Ph.D., and Translunar LLC.
+
 
 See LICENSE.txt.
