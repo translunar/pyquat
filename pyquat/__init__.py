@@ -188,6 +188,73 @@ def from_matrix(m):
     """
     return Quat.from_matrix(m)
 
+def uv_to_matrix(u, v):
+    """Construct a transformation matrix from a pair of two vectors (which must not
+    be parallel).
+
+    Reference:
+        * Wertz (1978). Spacecraft Attitude Determination and Control. p. 424.
+    
+    Args:
+        u:  length 3 vector
+        v:  length 3 vector
+
+    Returns:
+        A 3x3 transformation matrix that rotates vectors from the original frame
+    to the one created by the two vectors.
+    """
+
+    # Normalize both inputs
+    uh = u / linalg.norm(u) # q in Eq. 12-39a
+    vh = v / linalg.norm(v)
+
+    if np.abs(np.dot(uh, vh)) - 1.0 <= QUAT_SMALL:
+        raise ArgumentError()
+
+    rh = np.cross(uh, vh)
+    rh /= linalg.norm(rh) # Eq. 12-39b
+    sh = np.cross(uh, rh) # Eq. 12-39c
+    sh /= linalg.norm(sh)
+
+    M = np.stack((uh, rh, sh))
+    return M
+
+
+def ref_obs_to_matrix(ur, vr, u, v):
+    """Construct a transformation matrix that maps from the reference frame to the
+    frame formed by the observations. Each pair of vectors is passed to the method
+    uv_to_matrix().
+    
+    Reference:
+        * Wertz (1978). Spacecraft Attitude Determination and Control. pp. 424--5.
+
+    Args:
+        ur: length 3 reference vector
+        vr: length 3 reference vector
+        u:  length 3 observation vector
+        v:  length 3 observation vector
+
+    Returns:
+        A 3x3 transformation matrix rotating from the reference frame to the
+    observation frame.
+    """
+    T_orig_to_obs = uv_to_matrix(u, v)
+    T_ref_to_orig = uv_to_matrix(ur, vr).T
+    return T_orig_to_obs.dot(T_ref_to_orig)
+
+
+def from_uv(*args):
+    """Turn vectors u, v into a transformation matrix and from there into
+    a quaternion. See also: uv_to_matrix().
+    """
+    return from_matrix(uv_to_matrix(*args))
+
+
+def from_ref_obs(*args):
+    """See ref_obs_to_matrix(). Produces a quaternion instead of a matrix."""
+    return from_matrix(ref_obs_to_matrix(*args))
+
+
 def step_rk4(q, w, dt, w_dynamics = None, q_dynamics = qdot, J = None, J_inv = None):
     """
     Use a standard Runge-Kutta 4-step / 4th-order integration to step
