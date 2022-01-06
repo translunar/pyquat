@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 """ Python C quaternion type for fast attitude and rotation computations.
 See:
-https://github.com/mohawkjohn/pyquat
+https://github.com/translunar/pyquat
 """
 
 from setuptools import setup, find_packages
@@ -24,10 +24,10 @@ c_quat = Extension('_pyquat',
 setup(name='pyquat',
       version=version,
       description='Python C quaternion type for fast attitude and rotation computations',
-      author='John O. Woods, Ph.D.',
-      author_email='john@openlunar.org',
-      url='http://github.com/openlunar/pyquat/',
-      download_url='https://github.com/mohawkjohn/pyquat/archive/v' + version + '.tar.gz',
+      author='Juno Woods, Ph.D.',
+      author_email='juno@translunar.io',
+      url='http://github.com/translunar/pyquat/',
+      download_url='https://github.com/translunar/pyquat/archive/v' + version + '.tar.gz',
       include_package_data=True,
       packages=['pyquat', 'pyquat.wahba'],
       ext_modules=[c_quat],
@@ -57,7 +57,6 @@ setup(name='pyquat',
           # that you indicate whether you support Python 2, Python 3 or both.
 
           'Programming Language :: C',
-          'Programming Language :: Python :: 2.7',
           'Programming Language :: Python :: 3',
           'Programming Language :: Python :: 3.4',
           'Programming Language :: Python :: 3.5',
