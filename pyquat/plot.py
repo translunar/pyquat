@@ -7,11 +7,11 @@ def prepare_quaternion_array_for_plotting(q_ary, rotate_axis='x'):
     """ Converting all attitudes to points on a sphere """
     ary = None
     if len(q_ary.shape) == 1:
-        ary = numpy.empty((3, q_ary.shape[0]))
+        ary = np.empty((3, q_ary.shape[0]))
         for i, q in enumerate(q_ary):
             ary[:,i] = q.to_unit_vector(rotate_axis)[:,0]
     elif len(q_ary.shape) == 2:
-        ary = numpy.empty((3, q_ary.shape[1]))
+        ary = np.empty((3, q_ary.shape[1]))
         for i, q in enumerate(q_ary):
             ary[:,i] = q[0].to_unit_vector(rotate_axis)[:,0]
     else:
@@ -58,7 +58,7 @@ def plot(q_ary, t = None, rotate_axis='x', fig = None, axes = None, **kwargs):
     else:
         return axes.plot(ary[0,:], ary[1,:], ary[2,:], **kwargs)
 
-def plot_frame(q, r = numpy.zeros((3,1)), fig = None, axes = None, axis_size = 1.0):
+def plot_frame(q, r = np.zeros((3,1)), fig = None, axes = None, axis_size = 1.0):
     """
     Plot a quaternion as a coordinate frame, with red, green, and blue 
     referring to x, y, and z.
@@ -70,9 +70,9 @@ def plot_frame(q, r = numpy.zeros((3,1)), fig = None, axes = None, axis_size = 1
     if axes is None:
         axes = fig.add_subplot(111, projection='3d')
 
-    xh = numpy.zeros((3,2))
-    yh = numpy.zeros_like(xh)
-    zh = numpy.zeros_like(xh)
+    xh = np.zeros((3,2))
+    yh = np.zeros_like(xh)
+    zh = np.zeros_like(xh)
     xh[0,1] = axis_size
     yh[1,1] = axis_size
     zh[2,1] = axis_size

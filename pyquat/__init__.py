@@ -2,13 +2,16 @@ from _pyquat import *
     
 import math
 import numpy as np
+
+from typing import Union, Optional
+
 from scipy import linalg
 import warnings
 
 QUAT_SMALL = 1e-8
 
 
-def fromstring(*args, **kwargs):
+def fromstring(*args, **kwargs) -> Quat:
     """
     Shortcut for pyquat.Quat.from_vector(numpy.fromstring()).  If you
     don't provide a 'sep' argument, this method will supply the
@@ -20,7 +23,11 @@ def fromstring(*args, **kwargs):
         
     return Quat(*(np.fromstring(*args, **kwargs)))
 
-def qdot(q, w, big_w = None):
+def qdot(
+        q: Union[Quat, np.ndarray],
+        w: np.ndarray,
+        big_w: Optional[np.ndarray] = None
+    ) -> np.ndarray:
     """
     Compute dq/dt given some angular velocity w and initial quaternion q.
     """
@@ -31,7 +38,7 @@ def qdot(q, w, big_w = None):
     else:
         return np.dot(big_w * 0.5, q)
 
-def wdot(w, J, J_inv = None):
+def wdot(w: np.ndarray, J: np.ndarray, J_inv: Optional[np.ndarray] = None) -> np.ndarray:
     """
     Compute dw/dt given some angular velocity w and moment of inertia J.
     """

@@ -1,1 +1,2 @@
 include pyquat/*.h
+include pyquat/pyquat.pyi
