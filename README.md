@@ -15,9 +15,10 @@ Note that since Travis discontinued free CI for open source projects, our CI pip
 has stopped working. The correct sequence to run before initiating a pull request is:
 
     pip3 install -r requirements.txt
+    python3 setup.py build_ext --inplace
     python3 setup.py test
     cd pyquat/
-    mypy . --exclude=_pyquat --config-file=../mypy.ini --strict
+    mypy . --config-file=../mypy.ini --strict
 
 ## Installation
 

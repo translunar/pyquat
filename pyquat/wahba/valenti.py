@@ -11,13 +11,27 @@ Reference:
 import numpy as np
 from math import sqrt
 
-from pyquat import valenti_q_mag as q_mag
-from pyquat import valenti_q_acc as q_acc
-from pyquat import valenti_dq_mag as dq_mag
-from pyquat import valenti_dq_acc as dq_acc
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from pyquat._pyquat import Quat
+
+    from pyquat._pyquat import valenti_q_mag as q_mag
+    from pyquat._pyquat import valenti_q_acc as q_acc
+    from pyquat._pyquat import valenti_dq_mag as dq_mag
+    from pyquat._pyquat import valenti_dq_acc as dq_acc
+else:
+    from _pyquat import Quat
+    from _pyquat import valenti_q_mag as q_mag
+    from _pyquat import valenti_q_acc as q_acc
+    from _pyquat import valenti_dq_mag as dq_mag
+    from _pyquat import valenti_dq_acc as dq_acc
+
     
-    
-def q_global_to_local(a, b):
+def q_global_to_local(
+        a: np.ndarray[Any, np.dtype[np.float64]],
+        b: np.ndarray[Any, np.dtype[np.float64]]
+    ) -> Quat:
     """Compute a global to local transformation using a relatively
     low-noise measurement a (e.g. from an accelerometer) and a
     relatively noisy measurement b (e.g. from a magnetometer).

@@ -1,49 +1,17 @@
-from pyquat._pyquat import *
+from typing import Union, Optional, Any, Tuple, Sequence, Callable, overload
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from pyquat._pyquat import *
+else:
+    from _pyquat import *
     
 import math
 import numpy as np
 import numpy.typing as npt
 
-from typing import Union, Optional, Any, Tuple, Sequence, Callable, overload
-
 from scipy import linalg
 import warnings
-
-# Overloads
-@overload
-def qdot(
-        q: np.ndarray[Any, np.dtype[np.float64]],
-        w: np.ndarray[Any, np.dtype[np.float64]],
-        big_w: Optional[np.ndarray[Any, np.dtype[np.float64]]] = None
-    ) -> np.ndarray[Any, np.dtype[np.float64]]: ...
-
-@overload
-def qdot(
-        q: Quat,
-        w: np.ndarray[Any, np.dtype[np.float64]],
-        big_w: Optional[np.ndarray[Any, np.dtype[np.float64]]] = None
-    ) -> np.ndarray[Any, np.dtype[np.float64]]: ...
-
-@overload
-def angle_vector_cov(
-        ary: np.ndarray[Any, np.dtype[np.float64]]
-    ) -> np.ndarray[Any, np.dtype[np.float64]]: ...
-
-@overload
-def angle_vector_cov(
-        ary: np.ndarray[Any, np.dtype[np.object_]]
-    ) -> np.ndarray[Any, np.dtype[np.float64]]: ...
-
-@overload
-def cov(
-        ary: np.ndarray[Any, np.dtype[np.float64]]
-    ) -> np.ndarray[Any, np.dtype[np.float64]]: ...
-
-@overload
-def cov(
-        ary: np.ndarray[Any, np.dtype[np.object_]]
-    ) -> np.ndarray[Any, np.dtype[np.float64]]: ...
-# End of overload declarations
 
 QUAT_SMALL = 1e-8
 
