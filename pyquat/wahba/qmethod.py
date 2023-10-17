@@ -15,15 +15,25 @@ References:
     Dynamics 38(4): 752-760.
 
 """
+from typing import Any, Optional, Sequence, TYPE_CHECKING
 
 import numpy as np
 import scipy.linalg as spl
 
-import pyquat as pq
+if TYPE_CHECKING:
+    import pyquat._pyquat as _pq
+else:
+    import _pyquat as _pq
+
 from pyquat.wahba import attitude_profile_matrix
 from pyquat.wahba import davenport_matrix
 
-def qekf_measurement_model(T, y, n, w):
+def qekf_measurement_model(
+        T: np.ndarray[Any, np.dtype[np.float64]],
+        y: np.ndarray[Any, np.dtype[np.float64]],
+        n: np.ndarray[Any, np.dtype[np.float64]],
+        w: np.ndarray[Any, np.dtype[np.float64]]
+    ) -> np.ndarray[Any, np.dtype[np.float64]]:
     """Generate a weighted least squares measurement model.
 
     This is eq. 18 from [2].
@@ -42,15 +52,18 @@ def qekf_measurement_model(T, y, n, w):
     for ii in range(y.shape[1]):
 
         # Measurement Jacobian: eq 18
-        yx  = pq.skew(y[0:3,ii])
+        yx  = _pq.skew(y[0:3,ii])
         Tn  = T.dot(n[0:3,ii])
-        Tnx = pq.skew(Tn)
+        Tnx = _pq.skew(Tn)
         H += w[ii] * (yx.dot(Tnx) + Tnx.dot(yx))
         
     return H
 
 
-def quest_measurement_covariance(vector, sigma):
+def quest_measurement_covariance(
+        vector: np.ndarray[Any, np.dtype[np.float64]],
+        sigma: float
+    ) -> np.ndarray[Any, np.dtype[np.float64]]:
     """Generate the measurement covariance from the QUEST measurement
     model for a given 3D unit vector and sigma.
 
@@ -67,7 +80,14 @@ def quest_measurement_covariance(vector, sigma):
     return (np.identity(3) - vector[0:3].reshape((3, 1)).dot(vector[0:3].reshape((1,3)))) * sigma
 
 
-def qekf_measurement_covariance(T, y, n, w, sigma_y, sigma_n):
+def qekf_measurement_covariance(
+        T: np.ndarray[Any, np.dtype[np.float64]],
+        y: np.ndarray[Any, np.dtype[np.float64]],
+        n: np.ndarray[Any, np.dtype[np.float64]],
+        w: np.ndarray[Any, np.dtype[np.float64]],
+        sigma_y: np.ndarray[Any, np.dtype[np.float64]],
+        sigma_n: np.ndarray[Any, np.dtype[np.float64]]
+    ) -> np.ndarray[Any, np.dtype[np.float64]]:
     """Generate a measurement covariance for the z vector by computing
     measurement covariances on the observations and reference vectors.
 
@@ -95,7 +115,7 @@ def qekf_measurement_covariance(T, y, n, w, sigma_y, sigma_n):
         T        transformation matrix describing the prior attitude
         y        3xm matrix of unit vector observations
         n        3xm matrix of corresponding unit reference vectors
-        a        array of measurement weights corresponding to y and n
+        w        array of measurement weights corresponding to y and n
         sigma_y  array of standard deviations for each unit vector observation
         sigma_n  array of standard deviations for each unit reference vector
 
@@ -110,9 +130,9 @@ def qekf_measurement_covariance(T, y, n, w, sigma_y, sigma_n):
         Rnn = quest_measurement_covariance(n[:,ii], sigma_n[ii])
         Ryy = quest_measurement_covariance(y[:,ii], sigma_y[ii])
 
-        yx  = pq.skew(y[0:3,ii])
+        yx  = _pq.skew(y[0:3,ii])
         Tn  = T.dot(n[0:3,ii])
-        Tnx = pq.skew(Tn)
+        Tnx = _pq.skew(Tn)
         
         # Measurement covariance: eq 25
         yxT = yx.dot(T)
@@ -121,7 +141,10 @@ def qekf_measurement_covariance(T, y, n, w, sigma_y, sigma_n):
     return R
 
         
-def compute_weights(sigma_y, sigma_n):
+def compute_weights(
+        sigma_y: np.ndarray[Any, np.dtype[np.float64]],
+        sigma_n: np.ndarray[Any, np.dtype[np.float64]]
+    ) -> np.ndarray[Any, np.dtype[np.float64]]:
     """Given the sigmas for observations y and reference vectors n, this
     method computes the weights needed for the measurement covariance for
     z.
@@ -144,12 +167,13 @@ def compute_weights(sigma_y, sigma_n):
     return np.array(w)
 
         
-def qmethod(y, n,
-            w       = None,
-            sigma_y = None,
-            sigma_n = None,
-            q_prior = None,
-            N_prior = None):
+def qmethod(
+        y: np.ndarray[Any, np.dtype[np.float64]],
+        n: np.ndarray[Any, np.dtype[np.float64]],
+        w: np.ndarray[Any, np.dtype[np.float64]],
+        q_prior: Optional[_pq.Quat] = None,
+        N_prior: Optional[np.ndarray[Any, np.dtype[np.float64]]] = None
+    ) -> _pq.Quat:
     """Runs Davenport's q-Method as described in [2], using priors as
     needed for a SOAR filter or qEKF. It produces a normalized quaternion
     corresponding to the largest eigenvalue of the Davenport matrix.
@@ -168,8 +192,6 @@ def qmethod(y, n,
         w        weights corresponding to each of the m entries of y 
                  and n; can also be computed from sigma_y and sigma_n
                  if those are supplied instead
-        sigma_y  sigmas corresponding to each of the m entries in y
-        sigma_n  sigmas corresponding to each of the m entries in n
         q_prior  prior attitude, if any
         N_prior  prior information matrix (3x3); this is also the
                  inverse of the prior covariance matrix (you must
@@ -181,7 +203,7 @@ def qmethod(y, n,
     """
     if q_prior is None:
         T = np.identity(3)
-        q_prior = pq.identity()
+        q_prior = _pq.identity()
 
         if N_prior is not None:
             raise ValueError("expected prior attitude to be given with prior information")
@@ -190,9 +212,6 @@ def qmethod(y, n,
 
         if N_prior is None:
             raise ValueError("expected prior information to be given with prior attitude")
-
-    if w is None:
-        w = compute_weights(sigma_y, sigma_n)
 
     B = attitude_profile_matrix(obs = y, ref = n, weights = w)
     K = davenport_matrix(B, covariance_analysis = True)
@@ -209,4 +228,4 @@ def qmethod(y, n,
     lam, v = spl.eig(K)
     ii = np.argmax(lam) # find the largest eigenvalue
 
-    return pq.Quat(*v[:,ii]).normalized()
+    return _pq.Quat(*v[:,ii]).normalized()

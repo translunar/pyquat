@@ -9,7 +9,7 @@ class TestWahbaESOQ(QuaternionTest):
         """attitude_profile_matrix() doesn't raise errors when given a quaternion measurement and a covariance"""
         q   = pq.identity()
         cov = np.identity(3)
-        B   = wahba.attitude_profile_matrix(q, cov)
+        B   = wahba.quat_attitude_profile_matrix(q, cov)
         # Needs actual test here
         
     
@@ -19,7 +19,7 @@ class TestWahbaESOQ(QuaternionTest):
         cov = np.identity(3)
         K1  = wahba.davenport_matrix(q = q, cov = cov)
 
-        B   = wahba.attitude_profile_matrix(q, cov)
+        B   = wahba.quat_attitude_profile_matrix(q, cov)
         K2  = wahba.davenport_matrix(B)
         np.testing.assert_array_equal(K1, K2)
 

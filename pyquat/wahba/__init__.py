@@ -11,12 +11,21 @@ Reference:
 
 """
 
+from typing import Any, Optional, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from pyquat._pyquat import Quat
+else:
+    from _pyquat import Quat
+
 import numpy as np
 import scipy.linalg as spl
 
-def davenport_matrix(B                   = None,
-                     covariance_analysis = False,
-                     **attitude_profile_kwargs):
+def davenport_matrix(
+        B: Optional[np.ndarray[Any, np.dtype[np.float64]]] = None,
+        covariance_analysis: bool = False,
+        **attitude_profile_kwargs
+    ) -> np.ndarray[Any, np.dtype[np.float64]]:
     """Compute the Davenport matrix for a given attitude profile.
     Accepts either an attitude profile matrix or the arguments
     for the attitude_profile_matrix() function. Returns a 4x4
@@ -60,7 +69,14 @@ def davenport_matrix(B                   = None,
     """
 
     if B is None:
-        B  = attitude_profile_matrix(**attitude_profile_kwargs)
+        # There are two different versions of the attitude profile matrix
+        # computation, one which takes a quaternion and a cov or inverse cov,
+        # and another which takes a set of observations and reference vectors.
+        # Here we figure out which one to call.
+        if 'q' in attitude_profile_kwargs:
+            B  = quat_attitude_profile_matrix(**attitude_profile_kwargs)
+        else:
+            B = attitude_profile_matrix(**attitude_profile_kwargs)
     
     S  = B + B.T
     mu = np.trace(B)
@@ -78,12 +94,28 @@ def davenport_matrix(B                   = None,
     return K
 
 
-def attitude_profile_matrix(q           = None,
-                            cov         = None,
-                            inverse_cov = None,
-                            obs         = None,
-                            ref         = None,
-                            weights     = None):
+def quat_attitude_profile_matrix(
+        q: Quat,
+        cov: Optional[np.ndarray[Any, np.dtype[np.float64]]] = None,
+        inverse_cov: Optional[np.ndarray[Any, np.dtype[np.float64]]] = None,
+    ) -> np.ndarray[Any, np.dtype[np.float64]]:
+
+    """
+    FIXME: Needs better documentation.
+
+    See reference given in attitude_profile_matrix() for documentation.
+    """
+    if inverse_cov is None:
+        inverse_cov = spl.inv(cov)
+
+    tr = np.trace(inverse_cov)
+    return np.dot(np.identity(3) * tr * 0.5 - inverse_cov, q.to_matrix())
+
+def attitude_profile_matrix(
+        obs: np.ndarray[Any, np.dtype[np.float64]],
+        ref: np.ndarray[Any, np.dtype[np.float64]],
+        weights: Optional[np.ndarray[Any, np.dtype[np.float64]]] = None
+    ) -> np.ndarray[Any, np.dtype[np.float64]]:
 
     """"There exists a unique orthogonal matrix A which satisfies
    
@@ -123,15 +155,6 @@ def attitude_profile_matrix(q           = None,
         q    
 
     """
-    if q is not None:
-        if inverse_cov is None:
-            inverse_cov = spl.inv(cov)
-
-        tr = np.trace(inverse_cov)
-        return np.dot(np.identity(3) * tr * 0.5 - inverse_cov, q.to_matrix())
-
-    # If we get this far, q was not provided; instead we're dealing with
-    # vector observations.
 
     # Make sure we have a weights vector since this is a weighted least
     # squares problem.
