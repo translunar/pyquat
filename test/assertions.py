@@ -65,10 +65,10 @@ class QuaternionTest(unittest.TestCase):
 
         # First, compute the quaternion mapping the ref frame to the obs frame.
         B = wahba.attitude_profile_matrix(obs = obs, ref = ref)
-        irot = esoq.sequential_rotation(B)
+        irot = esoq.sequential_rotation_helper(B)
         K = wahba.davenport_matrix(B)
         q, loss = esoq.esoq2(K, B, n_obs = 2)
-        q_ref_to_obs = esoq.sequential_rotation(q = q, irot = irot)
+        q_ref_to_obs = esoq.quat_sequential_rotation(q = q, irot = irot)
 
         T_ref_to_obs = q_ref_to_obs.to_matrix()
 

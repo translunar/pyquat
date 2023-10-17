@@ -33,7 +33,7 @@ class TestWahbaESOQ(QuaternionTest):
                         [1.0, 0.0],
                         [0.0, 1.0]])
         B = wahba.attitude_profile_matrix(obs = obs, ref = ref)
-        irot = esoq.sequential_rotation(B)
+        irot = esoq.sequential_rotation_helper(B)
         K = wahba.davenport_matrix(B)
         l = esoq.davenport_eigenvalues(K, B, n_obs = 2)
         self.assertLessEqual(-1.0 - 1e-6, l[3])
