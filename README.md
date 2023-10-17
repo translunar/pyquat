@@ -22,8 +22,8 @@ has stopped working. The correct sequence to run before initiating a pull reques
 
 ## Installation
 
-    python setup.py build
-    python setup.py install
+    python3 setup.py build
+    python3 setup.py install
 
 ## Usage
 

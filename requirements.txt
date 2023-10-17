@@ -1,5 +1,5 @@
-numpy
-scipy
+numpy=1.25.0
+scipy=1.8.1
 unittest2
 mypy
 matplotlib-stubs
