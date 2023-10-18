@@ -18,7 +18,7 @@ has stopped working. The correct sequence to run before initiating a pull reques
     python3 setup.py build_ext --inplace
     python3 setup.py test
     cd pyquat/
-    mypy . --config-file=../mypy.ini --strict
+    mypy .  --config-file=mypy.ini --exclude=build/ --explicit-package-bases
 
 ## Installation
 

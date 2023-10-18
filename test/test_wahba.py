@@ -1,12 +1,18 @@
-import numpy as np
+import typing
+from typing import TYPE_CHECKING
 
-from .context import wahba
+import numpy as np
 
 from test.assertions import QuaternionTest
 
+if TYPE_CHECKING:
+    import pyquat.pyquat.wahba as wahba
+else:
+    import pyquat.wahba as wahba
+
 class TestWahba(QuaternionTest):
 
-    def test_attitude_profile_matrix(self):
+    def test_attitude_profile_matrix(self) -> None:
         """attitude_profile_matrix() doesn't raise errors when given observation and reference vectors"""
         ref = np.array([[1.0, 0.0],
                         [0.0, 0.0],
@@ -18,7 +24,7 @@ class TestWahba(QuaternionTest):
         # Needs actual test here
 
 
-    def test_davenport_matrix(self):
+    def test_davenport_matrix(self) -> None:
         """davenport_matrix() called on the output of attitude_profile_matrix() produces a valid Davenport K matrix"""
         ref = np.array([[1.0, 0.0],
                         [0.0, 0.0],

@@ -1,43 +1,103 @@
+import typing
+from typing import TYPE_CHECKING, Any
+
 import unittest
 import numpy as np
 import math
 
-from .context import pq, esoq, wahba
+if TYPE_CHECKING:
+    import pyquat.pyquat as pq
+    import pyquat.pyquat.esoq as esoq
+    import pyquat.pyquat.wahba as wahba
+else:
+    import pyquat as pq
+    import pyquat.wahba.esoq as esoq
+    import pyquat.wahba as wahba
 
 class QuaternionTest(unittest.TestCase):
-    def assert_almost_equal_components(self, q1, q2, **kwargs):
+    def assert_almost_equal_components(
+            self,
+            q1: pq.Quat,
+            q2: pq.Quat,
+            **kwargs
+        ) -> None:
         self.assertAlmostEqual(q1.w, q2.w, **kwargs)
         self.assertAlmostEqual(q1.x, q2.x, **kwargs)
         self.assertAlmostEqual(q1.y, q2.y, **kwargs)
         self.assertAlmostEqual(q1.z, q2.z, **kwargs)
 
-    def assert_equal_as_matrix(self, q, m, **kwargs):
+    def assert_equal_as_matrix(
+            self,
+            q: pq.Quat,
+            m: np.ndarray[Any, np.dtype[np.float64]],
+            **kwargs
+        ) -> None:
         """ convert a quaternion to a matrix and compare it to m """
         np.testing.assert_array_equal(q.to_matrix(), m, **kwargs)
 
-    def assert_equal_as_quat(self, q, m, **kwargs):
+    def assert_equal_as_quat(
+            self,
+            q: pq.Quat,
+            m: np.ndarray[Any, np.dtype[np.float64]],
+            **kwargs
+        ) -> None:
+
         np.testing.assert_array_equal(q.to_vector(), pq.Quat.from_matrix(m).normalized().to_vector(), **kwargs)
         
-    def assert_almost_equal_as_matrix(self, q, m, **kwargs):
+    def assert_almost_equal_as_matrix(
+            self,
+            q: pq.Quat,
+            m: np.ndarray[Any, np.dtype[np.float64]],
+            **kwargs
+        ) -> None:
+
         """ convert a quaternion to a matrix and compare it to m """
         np.testing.assert_array_almost_equal(q.to_matrix(), m, **kwargs)
 
-    def assert_almost_equal_as_quat(self, q, m, **kwargs):
+    def assert_almost_equal_as_quat(
+            self,
+            q: pq.Quat,
+            m: np.ndarray[Any, np.dtype[np.float64]],
+            **kwargs
+        ) -> None:
+
         self.assert_almost_equal_components(q, pq.Quat.from_matrix(m).normalized(), **kwargs)
 
-    def assert_equal(self, q1, q2, **kwargs):
+    def assert_equal(
+            self,
+            q1: pq.Quat,
+            q2: pq.Quat,
+            **kwargs
+        ) -> None:
         np.testing.assert_array_equal(q1.to_vector(), q2.to_vector(), **kwargs)
 
-    def assert_not_equal(self, q1, q2, **kwargs):
+    def assert_not_equal(
+            self,
+            q1: pq.Quat,
+            q2: pq.Quat,
+            **kwargs
+        ) -> None:
         np.testing.assert_raises(AssertionError, np.testing.assert_array_equal, q1.to_vector(), q2.to_vector())
 
-    def assert_almost_equal(self, q1, q2, **kwargs):
+    def assert_almost_equal(
+            self,
+            q1: pq.Quat,
+            q2: pq.Quat,
+            **kwargs
+        ) -> None:
         dot = q1.dot(q2)
         if dot > 1.0:  dot = 1.0
         if dot < -1.0: dot = -1.0
         np.testing.assert_array_almost_equal(np.array([0.0]), np.array([math.acos(dot)]), **kwargs)
 
-    def assert_not_almost_equal(self, q1, q2, decimal=7,err_msg='',verbose=True):
+    def assert_not_almost_equal(
+            self,
+            q1: pq.Quat,
+            q2: pq.Quat,
+            decimal: int = 7,
+            err_msg: str = '',
+            verbose: bool = True
+        ) -> None:
         # This is a hack.
         dot     = q1.dot(q2)
         if dot > 1.0:  dot = 1.0
@@ -57,7 +117,12 @@ class QuaternionTest(unittest.TestCase):
         raise AssertionError(_build_err_msg())
         
 
-    def assert_esoq2_two_observations_correct(self, ref, obs, **kwargs):
+    def assert_esoq2_two_observations_correct(
+            self,
+            ref: np.ndarray[Any, np.dtype[np.float64]],
+            obs: np.ndarray[Any, np.dtype[np.float64]],
+            **kwargs
+        ) -> None:
         """
         Tests esoq2. Requires that ref and obs be 3x2 matrices (where each column
         is a ref or obs vector, respectively).

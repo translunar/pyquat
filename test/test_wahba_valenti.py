@@ -1,12 +1,21 @@
+import typing
+from typing import TYPE_CHECKING
+
 import numpy as np
 from scipy import linalg
 
 from test.assertions import QuaternionTest
-
-from .context import pq, valenti, random
         
+if TYPE_CHECKING:
+    import pyquat.pyquat.wahba.valenti as valenti
+    import pyquat.pyquat.random as random
+else:
+    import pyquat.wahba.valenti as valenti
+    import pyquat.random as random
+
+
 class TestWahbaValenti(QuaternionTest):
-    def test_q_acc_points_down(self):
+    def test_q_acc_points_down(self) -> None:
         """ Tests that q_acc produces an arbitrary quaternion which rotates the gravity vector [0,0,1]' (down) to point at a measurement"""
         for ii in range(0,100):
             a0 = random.uniform_random_axis().reshape(3)
@@ -20,7 +29,7 @@ class TestWahbaValenti(QuaternionTest):
             a1 = q.rotate(d)
             np.testing.assert_almost_equal(a0, a1, decimal=12)
 
-    def test_q_mag_points_north(self):
+    def test_q_mag_points_north(self) -> None:
         """ Tests that q_mag produces an arbitrary quaternion which points a random vector at [1,0,0]' (magnetic north); also tests that q_global_to_local gives the same result"""
         for ii in range(0, 100):
             a  = random.uniform_random_axis().reshape(3)
@@ -61,6 +70,3 @@ class TestWahbaValenti(QuaternionTest):
             # Test that q_global_to_local gives the same result.
             q_G_to_L_0 = valenti.q_global_to_local(a, b)
             self.assert_equal(q_G_to_L, q_G_to_L_0)
-        
-if __name__ == '__main__':
-    unittest.main()

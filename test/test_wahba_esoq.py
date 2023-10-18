@@ -1,11 +1,21 @@
+import typing
+from typing import TYPE_CHECKING
+
 import numpy as np
 
 from test.assertions import QuaternionTest
 
-from .context import pq, esoq, wahba
+if TYPE_CHECKING:
+    import pyquat.pyquat as pq
+    import pyquat.pyquat.wahba.esoq as esoq
+    import pyquat.pyquat.wahba as wahba
+else:
+    import pyquat as pq
+    import pyquat.wahba.esoq as esoq
+    import pyquat.wahba as wahba
         
 class TestWahbaESOQ(QuaternionTest):
-    def test_attitude_profile_matrix_from_quaternion(self):
+    def test_attitude_profile_matrix_from_quaternion(self) -> None:
         """attitude_profile_matrix() doesn't raise errors when given a quaternion measurement and a covariance"""
         q   = pq.identity()
         cov = np.identity(3)
@@ -13,7 +23,7 @@ class TestWahbaESOQ(QuaternionTest):
         # Needs actual test here
         
     
-    def test_davenport_matrix_from_quaternion(self):
+    def test_davenport_matrix_from_quaternion(self) -> None:
         """The Davenport matrix produced by a quaternion is the same as that produced by attitude_profile_matrix() called on that same quaternion"""
         q   = pq.identity()
         cov = np.identity(3)
@@ -24,7 +34,7 @@ class TestWahbaESOQ(QuaternionTest):
         np.testing.assert_array_equal(K1, K2)
 
     
-    def test_davenport_eigenvalues(self):
+    def test_davenport_eigenvalues(self) -> None:
         """davenport_eigenvalues() produces eigenvalues in the appropriate range"""
         ref = np.array([[1.0, 0.0],
                         [0.0, 0.0],
@@ -42,7 +52,7 @@ class TestWahbaESOQ(QuaternionTest):
         self.assertLessEqual(l[1], l[0])
         self.assertLessEqual(l[0], 1.0 + 1e-6)
 
-    def test_trace_adj(self):
+    def test_trace_adj(self) -> None:
         """The adjugate trace is as expected"""
         K = np.array([[-1.0, 0, 2, -2],
                       [0, 3, 0, 0],
@@ -52,7 +62,7 @@ class TestWahbaESOQ(QuaternionTest):
         ta2 = np.trace(K)
         self.assertEqual(ta1, ta2)
 
-    def test_esoq2_0_rotation(self):
+    def test_esoq2_0_rotation(self) -> None:
         """ESOQ2 works properly with no rotation between ref and obs"""
         #Test borrowed from https://github.com/muzhig/ESOQ2/blob/master/test.cpp
         ref = np.array([[1.0, 0.0],
@@ -63,7 +73,7 @@ class TestWahbaESOQ(QuaternionTest):
                         [0.0, 1.0]])
         self.assert_esoq2_two_observations_correct(ref = ref, obs = obs, decimal=12)
 
-    def test_esoq2_90_z_rotation(self):
+    def test_esoq2_90_z_rotation(self) -> None:
         """ESOQ2 works properly with a 90-degree about-z rotation between ref and obs"""
 
         # Test borrowed from https://github.com/muzhig/ESOQ2/blob/master/test.cpp
@@ -76,7 +86,7 @@ class TestWahbaESOQ(QuaternionTest):
                         [0.0, 1.0]])
         self.assert_esoq2_two_observations_correct(ref = ref, obs = obs, decimal=12)
 
-    def test_esoq2_90_x_rotation(self):
+    def test_esoq2_90_x_rotation(self) -> None:
         """ESOQ2 works properly with a 90-degree about-x rotation between ref and obs"""
         
         # Test borrowed from https://github.com/muzhig/ESOQ2/blob/master/test.cpp
@@ -89,7 +99,7 @@ class TestWahbaESOQ(QuaternionTest):
                         [0.0, 0.0]])
         self.assert_esoq2_two_observations_correct(ref = ref, obs = obs, decimal=12)
 
-    def test_esoq2_90_y_rotation(self):
+    def test_esoq2_90_y_rotation(self) -> None:
         """ESOQ2 works properly with a 90-degree about-y rotation between ref and obs"""
         
         # Test borrowed from https://github.com/muzhig/ESOQ2/blob/master/test.cpp
@@ -102,7 +112,7 @@ class TestWahbaESOQ(QuaternionTest):
         self.assert_esoq2_two_observations_correct(ref = ref, obs = obs, decimal=12)
 
         
-    def test_esoq2_actual_rotation(self):
+    def test_esoq2_actual_rotation(self) -> None:
         """Verifies that ESOQ2 produces the expected result for an arbitrary set"""
         ref_d = np.array([[-0.13745816],
                           [ 0.44258304],
@@ -121,5 +131,3 @@ class TestWahbaESOQ(QuaternionTest):
         obs   = np.hstack((obs_d, obs_e))
         self.assert_esoq2_two_observations_correct(ref = ref, obs = obs, decimal=8)        
 
-if __name__ == '__main__':
-    unittest.main()

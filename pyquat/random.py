@@ -6,12 +6,14 @@ uniform and gaussian).
 It is also useful simply for generating random axes.
 """
 
+from typing import Any, Optional, Callable
+
 import pyquat as pq
 
 from math import sqrt, cos, sin, pi
 import numpy as np
 
-def randu(symmetric_range = 1.0):
+def randu(symmetric_range: float = 1.0) -> float:
     """
     Generate a uniform random number with mean 0 and range
     (-symmetric_range, +symmetric_range).  Default argument (1.0)
@@ -20,7 +22,9 @@ def randu(symmetric_range = 1.0):
     
     return (np.random.rand() * 2.0 - 1.0) * symmetric_range
 
-def uniform_random_axis(max_theta = 2.0 * pi, z_range = 1.0):
+def uniform_random_axis(
+        max_theta: float = 2.0 * pi, z_range: float = 1.0
+    ) -> np.ndarray[Any, np.dtype[np.float64]]:
     """
     Generate a unit random axis from a uniform distribution.
     """
@@ -41,7 +45,8 @@ def rand(
         angle = None,
         axis_generator = uniform_random_axis,
         angle_generator = randu,
-        **axis_generator_kwargs):
+        **axis_generator_kwargs
+    ):
     """
     Generate a random quaternion. With all defaults, the quaternion
     will be both random angle and random axis.
@@ -55,7 +60,7 @@ def rand(
 
     """
     if axis is not None and angle is not None:
-        raise StandardError("expected non-fixed angle or non-fixed axis or both")
+        raise ValueError("expected non-fixed angle or non-fixed axis or both")
     if axis is None:
         axis  = axis_generator(**axis_generator_kwargs)
     if angle is None:
