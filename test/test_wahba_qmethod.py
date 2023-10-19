@@ -16,7 +16,7 @@ else:
 
 class TestWahbaQMethod(QuaternionTest):
     
-    def test_qmethod(self):
+    def test_qmethod(self) -> None:
         q_inrtl_to_body_list = [
             pq.identity(),
             pq.Quat(1.0, -2.0, 3.0, 4.0).normalized(),

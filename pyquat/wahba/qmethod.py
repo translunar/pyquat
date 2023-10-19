@@ -24,9 +24,10 @@ if TYPE_CHECKING:
     import pyquat._pyquat as _pq
 else:
     import _pyquat as _pq
+from wahba import attitude_profile_matrix
+from wahba import davenport_matrix
 
-from pyquat.wahba import attitude_profile_matrix
-from pyquat.wahba import davenport_matrix
+
 
 def qekf_measurement_model(
         T: np.ndarray[Any, np.dtype[np.float64]],
@@ -62,7 +63,7 @@ def qekf_measurement_model(
 
 def quest_measurement_covariance(
         vector: np.ndarray[Any, np.dtype[np.float64]],
-        sigma: float
+        sigma: np.float64,
     ) -> np.ndarray[Any, np.dtype[np.float64]]:
     """Generate the measurement covariance from the QUEST measurement
     model for a given 3D unit vector and sigma.
@@ -77,7 +78,7 @@ def quest_measurement_covariance(
         A 3x3 covariance matrix.
     """
     
-    return (np.identity(3) - vector[0:3].reshape((3, 1)).dot(vector[0:3].reshape((1,3)))) * sigma
+    return ((np.identity(3) - vector[0:3].reshape((3, 1)).dot(vector[0:3].reshape((1,3)))) * sigma).astype(np.float64)
 
 
 def qekf_measurement_covariance(

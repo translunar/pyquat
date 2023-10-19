@@ -1,9 +1,19 @@
 import numpy as np
-import matplotlib.pyplot
+import matplotlib as mpl
+import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 
+from typing import TYPE_CHECKING, Any, Dict, Optional, List
 
-def prepare_quaternion_array_for_plotting(q_ary, rotate_axis='x'):
+if TYPE_CHECKING:
+    from pyquat._pyquat import Quat
+else:
+    from _pyquat import Quat
+
+def prepare_quaternion_array_for_plotting(
+        q_ary: np.ndarray[Any, np.dtype[np.object_]],
+        rotate_axis: str = 'x'
+    ) -> np.ndarray[Any, np.dtype[np.float64]]:
     """ Converting all attitudes to points on a sphere """
     ary = None
     if len(q_ary.shape) == 1:
@@ -15,24 +25,37 @@ def prepare_quaternion_array_for_plotting(q_ary, rotate_axis='x'):
         for i, q in enumerate(q_ary):
             ary[:,i] = q[0].to_unit_vector(rotate_axis)[:,0]
     else:
-        raise InputError("expected 1- or 2-D array")
+        raise ValueError("expected 1- or 2-D array")
     return ary
 
 
-def scatter(q_ary, rotate_axis='x', fig = None, axes = None, **kwargs):
+def scatter(
+        q_ary: np.ndarray[Any, np.dtype[np.object_]],
+        rotate_axis: str = 'x',
+        fig: Optional[mpl.figure.Figure] = None,
+        axes: Optional[mpl.axes.Axes] = None,
+        scatter_kwargs: Dict[str,Any] = {},
+    ) -> mpl.collections.PathCollection:
     """ Plot an array of quaternions as scatter points on a sphere """
 
     if fig is None:
-        fig = matplotlib.pyplot.figure()
+        fig = plt.figure()
     if axes is None:
         axes = fig.add_subplot(111, projection='3d')
 
     ary = prepare_quaternion_array_for_plotting(q_ary, rotate_axis = rotate_axis)
 
-    return axes.scatter(ary[0,:], ary[1,:], ary[2,:], **kwargs)
+    return axes.scatter(ary[0,:], ary[1,:], ary[2,:], **scatter_kwargs)
 
 
-def plot(q_ary, t = None, rotate_axis='x', fig = None, axes = None, **kwargs):
+def plot(
+        q_ary: np.ndarray[Any, np.dtype[np.object_]],
+        t: Optional[np.ndarray[Any, np.dtype[np.float64]]] = None,
+        rotate_axis: str = 'x',
+        fig: Optional[mpl.figure.Figure] = None,
+        axes: Optional[mpl.axes.Axes] = None,
+        plot_kwargs: Dict[str,Any] = {}
+    ) -> List[mpl.lines.Line2D]:
     """
     Plot an array of quaternions using lines on the surface of a sphere.
 
@@ -43,7 +66,7 @@ def plot(q_ary, t = None, rotate_axis='x', fig = None, axes = None, **kwargs):
     """
 
     if fig is None:
-        fig = matplotlib.pyplot.figure()
+        fig = plt.figure()
     if axes is None:
         axes = fig.add_subplot(111, projection='3d')
 
@@ -51,14 +74,23 @@ def plot(q_ary, t = None, rotate_axis='x', fig = None, axes = None, **kwargs):
 
     if t is not None:
         tc = (t - t.min()) / (t.max() - t.min())
-        c = numpy.vstack((tc, numpy.zeros_like(tc), -tc + 1.0))
+        c = np.vstack((tc, np.zeros_like(tc), -tc + 1.0))
 
+        lines: List[mpl.lines.Line2D] = []
         for i in range(1,ary.shape[1]):
-            axes.plot(ary[0,i-1:i+1], ary[1,i-1:i+1], ary[2,i-1:i+1], c = tuple(c[:,i]), **kwargs)
+            lines.extend(axes.plot(ary[0,i-1:i+1], ary[1,i-1:i+1], ary[2,i-1:i+1], c = tuple(c[:,i]), **plot_kwargs))
+        return lines
+        
     else:
-        return axes.plot(ary[0,:], ary[1,:], ary[2,:], **kwargs)
+        return axes.plot(ary[0,:], ary[1,:], ary[2,:], **plot_kwargs)
 
-def plot_frame(q, r = np.zeros((3,1)), fig = None, axes = None, axis_size = 1.0):
+def plot_frame(
+        q: Quat,
+        r: np.ndarray[Any, np.dtype[np.float64]] = np.zeros((3,1)),
+        fig: Optional[mpl.figure.Figure] = None,
+        axes: Optional[mpl.axes.Axes] = None,
+        axis_size: float = 1.0
+    ) -> mpl.axes.Axes:
     """
     Plot a quaternion as a coordinate frame, with red, green, and blue 
     referring to x, y, and z.
@@ -66,7 +98,7 @@ def plot_frame(q, r = np.zeros((3,1)), fig = None, axes = None, axis_size = 1.0)
     Also accepts an optional position to move the frame to (post-rotation).
     """
     if fig is None:
-        fig = matplotlib.pyplot.figure()
+        fig = plt.figure()
     if axes is None:
         axes = fig.add_subplot(111, projection='3d')
 
