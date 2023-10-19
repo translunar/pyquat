@@ -15,7 +15,7 @@ References:
     Dynamics 38(4): 752-760.
 
 """
-from typing import Any, Optional, Sequence, TYPE_CHECKING
+from typing import Any, Optional, Sequence, TYPE_CHECKING, cast
 
 import numpy as np
 import scipy.linalg as spl
@@ -78,8 +78,12 @@ def quest_measurement_covariance(
         A 3x3 covariance matrix.
     """
     
-    return (np.identity(3) - vector[0:3].reshape((3, 1)).dot(vector[0:3].reshape((1,3)))) * sigma
+    cov = (np.identity(3) - vector[0:3].reshape((3, 1)).dot(vector[0:3].reshape((1,3)))) * sigma
 
+    # This may be the wrong way to get around this mypy error. The issue is
+    # that numpy typing is funky, and the cast() function is the only way
+    # I could find to make it work.
+    return cast(np.ndarray[Any, np.dtype[np.float64]], cov)
 
 def qekf_measurement_covariance(
         T: np.ndarray[Any, np.dtype[np.float64]],
