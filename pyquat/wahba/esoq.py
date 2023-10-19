@@ -23,14 +23,14 @@ from math import sqrt, pi, cos, acos
 
 def trace_adj(
         a: np.ndarray[Any, np.dtype[np.float64]]
-    ) -> float:
+    ) -> np.float64:
 
     """Returns the trace of the adjunct of matrix a, which must be 3x3 or 4x4."""
     if max(a.shape) == 3:
         c1 = a[1,1] * a[2,2] - a[1,2] * a[2,1]
         c2 = a[0,0] * a[2,2] - a[0,2] * a[2,0]
         c3 = a[0,0] * a[1,1] - a[0,1] * a[1,0]
-        return c1 + c2 + c3
+        return np.float64(c1 + c2 + c3)
     else:
         return minor_det_4x4(a, 0, 1, 2) + minor_det_4x4(a, 0, 2, 3) + minor_det_4x4(a, 1, 2, 3) + minor_det_4x4(a, 0, 1, 3)
 
@@ -39,7 +39,7 @@ def minor_det_4x4(
         i: int = 0,
         j: int = 1,
         k: int = 2
-    ) -> float:
+    ) -> np.float64:
     """Returns the determinant of a minor of a 4x4 matrix.
 
     Args:
@@ -52,11 +52,11 @@ def minor_det_4x4(
         A Float giving the determinant of the indicated 3x3 submatrix.
         
     """
-    return a[i,i] * (a[j,j]*a[k,k] - a[j,k]*a[k,j]) - a[i,j] * (a[j,i]*a[k,k] - a[j,k]*a[k,i]) + a[i,k] * (a[j,i]*a[k,j] - a[j,j]*a[k,i])
+    return np.float64(a[i,i] * (a[j,j]*a[k,k] - a[j,k]*a[k,j]) - a[i,j] * (a[j,i]*a[k,k] - a[j,k]*a[k,i]) + a[i,k] * (a[j,i]*a[k,j] - a[j,j]*a[k,i]))
 
 def trace_adj_symm(
         a: np.ndarray[Any, np.dtype[np.float64]]
-    ) -> float:
+    ) -> np.float64:
 
     """Returns the trace of the adjunct of a symmetric matrix a, which
     must be 3x3 or 4x4."""
@@ -64,7 +64,7 @@ def trace_adj_symm(
         c1 = a[1,1] * a[2,2] - a[1,2]**2
         c2 = a[0,0] * a[2,2] - a[0,2]**2
         c3 = a[0,0] * a[1,1] - a[0,1]**2
-        return c1 + c2 + c3
+        return np.float64(c1 + c2 + c3)
     else:
         return trace_adj(a)
 

@@ -474,7 +474,7 @@ class TestPyquat(QuaternionTest):
         self.assert_not_equal(lerp, slerp)
 
 
-    def test_rotate(self):
+    def test_rotate(self) -> None:
         """Rotation of a vector using a quaternion is equivalent to standard matrix-vector multiplication over many random test quaternions and vectors (to 14 decimal places)"""
         import pyquat.random as pqr
         
@@ -545,7 +545,7 @@ class TestPyquat(QuaternionTest):
 
             for ii in range(0, len(x)):
                 ax.scatter([x[ii], x[ii], x[ii], x[ii]], f[ii].to_vector(), s=2)
-            plt.show()
+            plt.show() # type: ignore
 
     def test_Xi(self) -> None:
         """Xi matrix construction"""
