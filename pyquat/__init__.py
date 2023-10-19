@@ -1,14 +1,21 @@
-from _pyquat import *
+from typing import Union, Optional, Any, Tuple, Sequence, Callable, overload
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from pyquat._pyquat import *
+else:
+    from _pyquat import *
     
 import math
 import numpy as np
+import numpy.typing as npt
+
 from scipy import linalg
 import warnings
 
 QUAT_SMALL = 1e-8
 
-
-def fromstring(*args, **kwargs):
+def fromstring(*args, **kwargs) -> Quat:
     """
     Shortcut for pyquat.Quat.from_vector(numpy.fromstring()).  If you
     don't provide a 'sep' argument, this method will supply the
@@ -20,18 +27,29 @@ def fromstring(*args, **kwargs):
         
     return Quat(*(np.fromstring(*args, **kwargs)))
 
-def qdot(q, w, big_w = None):
+def qdot(
+        q: Union[
+            Quat,
+            np.ndarray[Any, np.dtype[np.float64]]
+        ],
+        w: np.ndarray[Any, np.dtype[np.float64]],
+        big_w: Optional[np.ndarray[Any, np.dtype[np.float64]]] = None
+    ) -> np.ndarray[Any, np.dtype[np.float64]]:
     """
     Compute dq/dt given some angular velocity w and initial quaternion q.
     """
+    if isinstance(q, Quat):
+        q = q.to_vector()
     if big_w is None:
         big_w = big_omega(w)
-    if isinstance(q, Quat):
-        return np.dot(big_w * 0.5, q.to_vector())
-    else:
-        return np.dot(big_w * 0.5, q)
+    return np.dot(big_w * 0.5, q)
 
-def wdot(w, J, J_inv = None):
+
+def wdot(
+        w: np.ndarray[Any, np.dtype[np.float64]],
+        J: np.ndarray[Any, np.dtype[np.float64]],
+        J_inv: Optional[npt.ArrayLike] = None
+    ) -> np.ndarray[Any, np.dtype[np.float64]]:
     """
     Compute dw/dt given some angular velocity w and moment of inertia J.
     """
@@ -39,7 +57,10 @@ def wdot(w, J, J_inv = None):
         J_inv = linalg.inv(J)
     return np.dot(J_inv, np.dot(skew(np.dot(J, w)), w))
 
-def state_transition_matrix(w, big_w = None):
+def state_transition_matrix(
+        w: np.ndarray[Any, np.dtype[np.float64]],
+        big_w: Optional[np.ndarray[Any, np.dtype[np.float64]]] = None
+    ) -> np.ndarray[Any, np.dtype[np.float64]]:
     """
     Generate a state transition matrix for a quaternion based on some
     angular velocity w.
@@ -52,7 +73,10 @@ def change(*args, **kwargs):
     warnings.warn("deprecated", DeprecationWarning)
     return propagate(*args, **kwargs)
 
-def propagate(q, w, dt):
+def propagate(
+        q: Quat,
+        w: np.ndarray[Any, np.dtype[np.float64]],
+        dt: float):
     """
     Change a quaternion q by some angular velocity w over some small
     timestep dt.
@@ -64,7 +88,12 @@ def propagate(q, w, dt):
         return q.copy()
     return Quat(*(np.dot(expm(w, dt), q.to_vector())))
 
-def matrix_propagate(T, w, dt, r = 1):
+def matrix_propagate(
+        T: np.ndarray[Any, np.dtype[np.float64]],
+        w: np.ndarray[Any, np.dtype[np.float64]],
+        dt: float,
+        r: int = 1
+    ) -> np.ndarray[Any, np.dtype[np.float64]]:
     """Propagate an attitude matrix T forward by some angular velocity w
     over time step dt. This method uses a Taylor expansion of degree r
     where r is between 1 and 4 inclusive.
@@ -100,15 +129,19 @@ def matrix_propagate(T, w, dt, r = 1):
                 wt2   = wt.T.dot(wt)
                 exp += wtx2 * (0.5 - wt / 6.0 - wt2 / 24.0)
             else:
-                raise(NotImplemented, "degree must be between 1 and 4 inclusive")
+                raise NotImplementedError("degree must be between 1 and 4 inclusive")
         else:
-            raise(NotImplemented, "degree must be between 1 and 4 inclusive")
+            raise NotImplementedError("degree must be between 1 and 4 inclusive")
 
     return exp.T.dot(T)
         
     
 
-def propagate_additively(q, w, dt):
+def propagate_additively(
+        q: Quat,
+        w: np.ndarray[Any, np.dtype[np.float64]],
+        dt: float
+    ) -> Quat:
     """Change a quaternion q by some angular velocity w over some small
     timestep dt, using additive propagation (q1 = q0 + dq/dt * dt)"""
     
@@ -117,14 +150,19 @@ def propagate_additively(q, w, dt):
     return Quat(*q_vector)
 
     
-def cov(ary):
+def cov(
+        ary: Union[
+            np.ndarray[Any, np.dtype[np.float64]],
+            np.ndarray[Any, np.dtype[np.object_]]
+        ]
+    ) -> np.ndarray[Any, np.dtype[np.float64]]:
     """Compute the covariance of an array of quaternions, where each
     column represents a quaternion.
     """
     # If the user supplies an array of N quaternions, convert it to a 4xN array,
     # since we need it in this form to get its covariance.
     if ary.dtype == np.dtype(Quat):
-        a = np.empty((4, max(ary.shape)), dtype=np.double)
+        a = np.empty((4, max(ary.shape)), dtype=np.float64)
         q_ary = ary.T
         for i, q in enumerate(q_ary.flatten()):
             a[:,i] = q.to_vector()[:,0]
@@ -133,7 +171,10 @@ def cov(ary):
     # Compute the covariance of the supplied quaternions.
     return np.cov(ary)
 
-def mean(ary, covariance = None):
+def mean(
+        ary: npt.ArrayLike,
+        covariance: Optional[np.ndarray[Any, np.dtype[np.float64]]] = None
+    ) -> Quat:
     """
     Compute the average quaternion using Markey, Cheng, Craissidis, and Oshman (2007)
     
@@ -150,45 +191,73 @@ def mean(ary, covariance = None):
     mean.normalize()
     return mean
 
-def mean_and_cov(ary):
+def mean_and_cov(
+        ary: npt.ArrayLike
+    ) -> Tuple[Quat, np.ndarray[Any, np.dtype[np.float64]]]:
     c = cov(ary)
     m = mean(ary, covariance=c)
     return (m,c)
 
-def angle_vector_cov(ary):
+def angle_vector_cov(
+        ary: Union[
+            np.ndarray[Any, np.dtype[np.float64]],
+            np.ndarray[Any, np.dtype[np.object_]]
+        ]
+    ) -> np.ndarray[Any, np.dtype[np.float64]]:
     """
     Compute the covariance of an array of quaternions, like cov(), except use the attitude vector
     representation of each.
     """
-
     if ary.dtype == np.dtype(Quat):
-        a = np.empty((3, max(ary.shape)), dtype=np.double)
-        q_ary = ary.T
-        for i, q in enumerate(q_ary.flatten()):
-            a[:,i] = q.to_angle_vector()[:,0]
-        ary = a
-    elif ary.dtype == np.double:
-        a = np.empty((3, ary.shape[1]), dtype=np.double)
+        a = np.empty((3, ary.shape[1]), dtype=np.float64)
         q_ary = ary.T
         for i, q in enumerate(q_ary):
             a[:,i] = Quat(q[0], q[1], q[2], q[3]).to_angle_vector()[:,0]
         ary = a
+    elif ary.dtype == np.float64:
+        a = np.empty((3, max(ary.shape)), dtype=np.float64)
+        q_ary = ary.T
+        for i, q in enumerate(q_ary.flatten()):
+            a[:,i] = q.to_angle_vector()[:,0]
+        ary = a
+    else:
+        raise TypeError("expected Quat or np.float64 dtype")
 
     return np.cov(ary)
 
-def from_rotation_vector(v):
+def from_rotation_vector(v: np.ndarray[Any, np.dtype[np.float64]]) -> Quat:
     """
     Shortcut for Quat.from_rotation_vector(v).
     """
     return Quat.from_rotation_vector(v)
 
-def from_matrix(m):
+def from_matrix(m: np.ndarray[Any, np.dtype[np.float64]]) -> Quat:
     """
     Shortcut for Quat.from_matrix(v).
     """
     return Quat.from_matrix(m)
 
-def step_rk4(q, w, dt, w_dynamics = None, q_dynamics = qdot, J = None, J_inv = None):
+
+"""
+        q: Union[Quat, npt.ArrayLike],
+        w: npt.ArrayLike,
+        big_w: Optional[npt.ArrayLike] = None
+    ) -> np.ndarray[Any, np.dtype[np.float64]
+               """     
+
+def step_rk4(
+        q: Quat,
+        w: np.ndarray[Any, np.dtype[np.float64]],
+        dt: float,
+        w_dynamics: Optional[Callable[[npt.ArrayLike, npt.ArrayLike, npt.ArrayLike],np.ndarray[Any, np.dtype[np.float64]]]] = None,
+        q_dynamics: Callable[
+            [
+                np.ndarray[Any, np.dtype[np.float64]],
+                np.ndarray[Any, np.dtype[np.float64]]
+            ], np.ndarray[Any, np.dtype[np.float64]]] = qdot,
+        J: Optional[npt.ArrayLike] = None,
+        J_inv: Optional[npt.ArrayLike] = None
+    ) -> Tuple[Quat, np.ndarray[Any, np.dtype[np.float64]]]:
     """
     Use a standard Runge-Kutta 4-step / 4th-order integration to step
     the quaternion forward in time.
@@ -254,13 +323,13 @@ def step_rk4(q, w, dt, w_dynamics = None, q_dynamics = qdot, J = None, J_inv = N
     return (Quat(*q_next).normalized(), w_next)
 
 def step_cg3(
-        q,
-        w,
-        dt,
-        w_dynamics                = None,
-        q_state_transition_matrix = state_transition_matrix,
-        J                         = None,
-        J_inv                     = None):
+        q: Quat,
+        w: np.ndarray[Any, np.dtype[np.float64]],
+        dt: float,
+        w_dynamics: Optional[Callable[[npt.ArrayLike, npt.ArrayLike, npt.ArrayLike],np.ndarray[Any, np.dtype[np.float64]]]] = None,
+        J: Optional[npt.ArrayLike] = None,
+        J_inv: Optional[npt.ArrayLike] = None
+    ) -> Tuple[Quat, np.ndarray[Any, np.dtype[np.float64]]]:
     """
     Use a 3-stage, third-order Crouch-Grossman integration for 
     propagating a quaternion and a Runge-Kutta integration for 
@@ -318,13 +387,13 @@ def step_cg3(
     return (Quat(*q_next), w_next)
 
 def step_cg4(
-        q,
-        w,
-        dt,
-        w_dynamics                = None,
-        q_state_transition_matrix = state_transition_matrix,
-        J                         = None,
-        J_inv                     = None):
+        q: Quat,
+        w: np.ndarray[Any, np.dtype[np.float64]],
+        dt: float,
+        w_dynamics: Optional[Callable[[npt.ArrayLike, npt.ArrayLike, npt.ArrayLike],np.ndarray[Any, np.dtype[np.float64]]]] = None,
+        J: Optional[npt.ArrayLike] = None,
+        J_inv: Optional[npt.ArrayLike] = None
+    ) -> Tuple[Quat, np.ndarray[Any, np.dtype[np.float64]]]:
     """
     Use a 5-stage, fourth-order Crouch-Grossman integration for 
     propagating a quaternion and a Runge-Kutta integration for 
@@ -370,7 +439,7 @@ def step_cg4(
         
     else:
         if J is None:
-            J = numpy.identity(3)
+            J = np.identity(3)
             J_inv = J
         elif J_inv is None:
             J_inv = linalg.inv(J)
@@ -409,10 +478,14 @@ def step_cg4(
     return (Quat(*q_next), w_next)
 
 
-def interp(x, xp, fp,
-           lerp_threshold = 1.0,
-           left           = 'slerp',
-           right          = 'slerp'):
+def interp(
+        x: Sequence[float],
+        xp: Sequence[float],
+        fp: Sequence[Quat],
+        lerp_threshold: float = 1.0,
+        left: str = 'slerp',
+        right: str = 'slerp'
+    ) -> Sequence[Quat]:
     """Corresponds roughly to numpy.interp. Attempts to interpolate the
     quaternion series qp occurring at independent variable series tp (e.g.
     times) at other values given by t.
@@ -436,9 +509,6 @@ def interp(x, xp, fp,
 
     indices = np.searchsorted(xp, x)
     f       = []
-
-    if isinstance(x, (float, int)):
-        x = [x]
 
     jj = 0
     for ii in indices:

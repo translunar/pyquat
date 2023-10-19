@@ -10,22 +10,36 @@ Reference:
     SIAM Review 7(3): 409.
 
 """
+from typing import Any, Optional, Tuple, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from pyquat._pyquat import Quat
+else:
+    from _pyquat import Quat
 
 import numpy as np
 from scipy import linalg
 from math import sqrt, pi, cos, acos
 
-def trace_adj(a):
+def trace_adj(
+        a: np.ndarray[Any, np.dtype[np.float64]]
+    ) -> np.float64:
+
     """Returns the trace of the adjunct of matrix a, which must be 3x3 or 4x4."""
     if max(a.shape) == 3:
         c1 = a[1,1] * a[2,2] - a[1,2] * a[2,1]
         c2 = a[0,0] * a[2,2] - a[0,2] * a[2,0]
         c3 = a[0,0] * a[1,1] - a[0,1] * a[1,0]
-        return c1 + c2 + c3
+        return np.float64(c1 + c2 + c3)
     else:
         return minor_det_4x4(a, 0, 1, 2) + minor_det_4x4(a, 0, 2, 3) + minor_det_4x4(a, 1, 2, 3) + minor_det_4x4(a, 0, 1, 3)
 
-def minor_det_4x4(a, i = 0, j = 1, k = 2):
+def minor_det_4x4(
+        a: np.ndarray[Any, np.dtype[np.float64]],
+        i: int = 0,
+        j: int = 1,
+        k: int = 2
+    ) -> np.float64:
     """Returns the determinant of a minor of a 4x4 matrix.
 
     Args:
@@ -38,28 +52,68 @@ def minor_det_4x4(a, i = 0, j = 1, k = 2):
         A Float giving the determinant of the indicated 3x3 submatrix.
         
     """
-    return a[i,i] * (a[j,j]*a[k,k] - a[j,k]*a[k,j]) - a[i,j] * (a[j,i]*a[k,k] - a[j,k]*a[k,i]) + a[i,k] * (a[j,i]*a[k,j] - a[j,j]*a[k,i])
+    return np.float64(a[i,i] * (a[j,j]*a[k,k] - a[j,k]*a[k,j]) - a[i,j] * (a[j,i]*a[k,k] - a[j,k]*a[k,i]) + a[i,k] * (a[j,i]*a[k,j] - a[j,j]*a[k,i]))
 
-def trace_adj_symm(a):
+def trace_adj_symm(
+        a: np.ndarray[Any, np.dtype[np.float64]]
+    ) -> np.float64:
+
     """Returns the trace of the adjunct of a symmetric matrix a, which
     must be 3x3 or 4x4."""
     if max(a.shape) == 3:
         c1 = a[1,1] * a[2,2] - a[1,2]**2
         c2 = a[0,0] * a[2,2] - a[0,2]**2
         c3 = a[0,0] * a[1,1] - a[0,1]**2
-        return c1 + c2 + c3
+        return np.float64(c1 + c2 + c3)
     else:
         return trace_adj(a)
 
 
-def lambda_nr_iterate(lambda_c, b, c, d):
+def lambda_nr_iterate(
+        lambda_c: float,
+        b: float,
+        c: float,
+        d: float
+    ) -> float:
     l2 = lambda_c**2
     l3 = l2*lambda_c
     l4 = l2**2
     return lambda_c - (l4 + b*l2 + c*lambda_c + d) / (4.0*l3 + 2.0*b*lambda_c + c)
 
+def sequential_rotation_helper(
+        B: np.ndarray[Any, np.dtype[np.float64]] 
+    ) -> int:
+    """
+    See documentation for sequential_rotation()
+    """
+    
+    diag_B  = np.diag(B)
+    irot    = int(np.argmin(diag_B))
+    sequential_rotation(B, irot = irot)
+    return irot
 
-def sequential_rotation(B = None, q = None, irot = None):
+
+def quat_sequential_rotation(
+        q: Quat,
+        irot: int,
+    ) -> Quat:
+    """See documentation for sequential_rotation()
+
+    """
+
+    if irot == 0:
+        return Quat(-q.x, q.w, -q.z, q.y)
+    elif irot == 1:
+        return Quat(-q.y, q.z, q.w, -q.x)
+    elif irot == 2:
+        return Quat(-q.x, q.w, -q.z, q.y)
+    else:
+        raise ValueError("expected irot to be 0, 1, or 2")
+
+def sequential_rotation(
+        B: np.ndarray[Any, np.dtype[np.float64]],
+        irot: Optional[int] = None
+    ) -> np.ndarray[Any, np.dtype[np.float64]]:
     """"It is noted without proof that a rotation through an angle
     greater than \frac{\pi}{2} can be expressed as a rotation
     through \pi about one of the coordinate axes followed by a
@@ -113,33 +167,24 @@ def sequential_rotation(B = None, q = None, irot = None):
         70-77.
 
     """
-    import pyquat as pq
-    
-    if irot is None:
-        diag_B  = np.diag(B)
-        irot    = np.argmin(diag_B)
-        sequential_rotation(B, irot = irot)
-        return irot
-    else:
-        if B is None:
-            if irot == 0:
-                return pq.Quat(-q.x, q.w, -q.z, q.y)
-            elif irot == 1:
-                return pq.Quat(-q.y, q.z, q.w, -q.x)
-            elif irot == 2:
-                return pq.Quat(-q.x, q.w, -q.z, q.y)
-        else:
-            if irot == 0:
-                B[:,1:3] *= -1.0
-            elif irot == 1:
-                B[:,0] *= -1.0
-                B[:,2] *= -1.0
-            elif irot == 2:
-                B[:,0:2] *= -1.0
-            return B
-        
 
-def davenport_eigenvalues(K, B, n_obs = None):
+    if irot is None:
+        irot = sequential_rotation_helper(B)
+    if irot == 0:
+        B[:,1:3] *= -1.0
+    elif irot == 1:
+        B[:,0] *= -1.0
+        B[:,2] *= -1.0
+    elif irot == 2:
+        B[:,0:2] *= -1.0
+    return B
+
+
+def davenport_eigenvalues(
+        K: np.ndarray[Any, np.dtype[np.float64]],
+        B: np.ndarray[Any, np.dtype[np.float64]],
+        n_obs: Optional[int] = None
+    ) -> np.ndarray[Any, np.dtype[np.float64]]:
     """
     Compute the eigenvalues of the Davenport matrix K.
 
@@ -204,10 +249,12 @@ def davenport_eigenvalues(K, B, n_obs = None):
     return np.array([lambda_4, lambda_3, lambda_2, lambda_1])
 
 
-def esoq2(K,
-          B,
-          lambda_0 = None,
-          n_obs    = None):
+def esoq2(
+        K: np.ndarray[Any, np.dtype[np.float64]],
+        B: np.ndarray[Any, np.dtype[np.float64]],
+        lambda_0: Optional[float] = None,
+        n_obs: Optional[int] = None
+    ) -> Tuple[Quat, float]:
     """
     Compute the optimal quaternion using Mortari's second estimator.
     
@@ -237,6 +284,8 @@ def esoq2(K,
     import pyquat as pq
 
     if lambda_0 is None: # Initial guess for maximum eigenvalue
+        if n_obs is None:
+            raise ValueError("expected n_obs to be provided if lambda_0 is not")
         lambda_0 = float(n_obs)
 
     tr_B = np.trace(B)
@@ -283,7 +332,7 @@ def esoq2(K,
         
 
     # Find the normalized quaternion (unrotated)
-    q = pq.Quat(np.dot(z.T, e),
-                *(e * -trace_minus_lambda)).normalized_large()
+    q = Quat(np.dot(z.T, e),
+             *(e * -trace_minus_lambda)).normalized_large()
         
     return q, loss

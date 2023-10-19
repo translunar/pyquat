@@ -9,11 +9,21 @@ surface of a unit sphere in four dimensions (SO4).
 
 [![image](http://img.shields.io/pypi/v/pyquat.svg)](https://pypi.python.org/pypi/pyquat/)
 
+## Developers
+
+Note that since Travis discontinued free CI for open source projects, our CI pipeline
+has stopped working. The correct sequence to run before initiating a pull request is:
+
+    pip3 install -r requirements.txt
+    python3 setup.py build_ext --inplace
+    python3 setup.py test
+    cd pyquat/
+    mypy .  --config-file=mypy.ini --exclude=build --explicit-package-bases --strict
 
 ## Installation
 
-    python setup.py build
-    python setup.py install
+    python3 setup.py build
+    python3 setup.py install
 
 ## Usage
 

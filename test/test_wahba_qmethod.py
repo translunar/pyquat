@@ -1,14 +1,22 @@
+import typing
+from typing import TYPE_CHECKING
+
 import numpy as np
 import numpy.random as npr
 import scipy.linalg as spl
 
 from test.assertions import QuaternionTest
 
-from .context import pq, esoq, wahba, qmethod
-        
+if TYPE_CHECKING:
+    import pyquat.pyquat as pq
+    import pyquat.pyquat.wahba.qmethod as qmethod
+else:
+    import pyquat as pq
+    import pyquat.wahba.qmethod as qmethod
+
 class TestWahbaQMethod(QuaternionTest):
     
-    def test_qmethod(self):
+    def test_qmethod(self) -> None:
         q_inrtl_to_body_list = [
             pq.identity(),
             pq.Quat(1.0, -2.0, 3.0, 4.0).normalized(),
