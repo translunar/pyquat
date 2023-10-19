@@ -7,11 +7,23 @@ class Quat:
     @classmethod
     def from_rotation_vector(cls, mat: npt.ArrayLike) -> Quat: ...
 
+    @overload
     @classmethod
     def from_angle_axis(
         cls,
         phi: float,
-        **kwargs
+        x: float,
+        y: float,
+        z: float
+    ) -> Quat: ...
+
+    @overload
+    @classmethod
+    def from_angle_axis(
+        cls,
+        phi: float,
+        z: float,
+        theta: float
     ) -> Quat: ...
 
     @classmethod

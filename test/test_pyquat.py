@@ -78,6 +78,20 @@ class TestPyquat(QuaternionTest):
         phi_hat = phi / angle
         self.assert_almost_equal_components(q, pq.Quat.from_angle_axis(angle, phi_hat[0], phi_hat[1], phi_hat[2]))
 
+    def test_angle_axis_with_theta(self) -> None:
+        """Accepts the alternate parameters for from_angle_axis"""
+        q = pq.Quat(0.4, -0.3, 0.2, -0.1)
+        q.normalize()
+        phi = q.to_rotation_vector()
+        angle = linalg.norm(phi)
+        phi_hat = phi / angle
+        x, y, z = phi_hat[0], phi_hat[1], phi_hat[2]
+        # Now find theta using x, y, and z
+        # x2 = (1 - z2) * cos2(theta)
+        # y2 = (1 - x2) * sin2(theta)
+        theta = np.arctan2(y, x)
+        self.assert_almost_equal_components(q, pq.Quat.from_angle_axis(angle, z=z, theta=theta))
+
     def test_symmetric_conjugate(self) -> None:
         """Quaternion conjugation is symmetric"""
         q = pq.Quat(0.4, -0.3, 0.2, -0.1)

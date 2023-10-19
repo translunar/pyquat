@@ -6,12 +6,25 @@ uniform and gaussian).
 It is also useful simply for generating random axes.
 """
 
-from typing import Any, Optional, Callable
+from typing import Any, Optional, Callable, TypedDict, TYPE_CHECKING
 
-import pyquat as pq
+if TYPE_CHECKING:
+    from pyquat._pyquat import Quat
+else:
+    from _pyquat import Quat
 
 from math import sqrt, cos, sin, pi
 import numpy as np
+
+class AxisGeneratorKwargs(TypedDict, total=False):
+    max_theta: float
+    z_range: float
+
+class AngleGeneratorKwargs(TypedDict, total=False):
+    symmetric_range: float
+
+AxisGeneratorType = Callable[..., np.ndarray[Any, np.dtype[np.float64]]]
+AngleGeneratorType = Callable[..., float]
 
 def randu(symmetric_range: float = 1.0) -> float:
     """
@@ -20,10 +33,11 @@ def randu(symmetric_range: float = 1.0) -> float:
     gives mean 0 and range (-1, 1).
     """
     
-    return (np.random.rand() * 2.0 - 1.0) * symmetric_range
+    return float(np.random.rand() * 2.0 - 1.0) * symmetric_range
 
 def uniform_random_axis(
-        max_theta: float = 2.0 * pi, z_range: float = 1.0
+        max_theta: float = 2.0 * pi,
+        z_range: float = 1.0
     ) -> np.ndarray[Any, np.dtype[np.float64]]:
     """
     Generate a unit random axis from a uniform distribution.
@@ -31,7 +45,7 @@ def uniform_random_axis(
     if max_theta == 0.0:
         theta = 0.0
     else:
-        theta = np.random.rand() * max_theta
+        theta = float(np.random.rand()) * max_theta
 
     axis = np.zeros((3,1))
     axis[2] = randu(z_range)
@@ -41,12 +55,13 @@ def uniform_random_axis(
 
 
 def rand(
-        axis = None,
-        angle = None,
-        axis_generator = uniform_random_axis,
-        angle_generator = randu,
-        **axis_generator_kwargs
-    ):
+        axis: Optional[np.ndarray[Any, np.dtype[np.float64]]] = None,
+        angle: Optional[float] = None,
+        axis_generator: AxisGeneratorType = uniform_random_axis,
+        angle_generator: AngleGeneratorType = randu,
+        axis_generator_kwargs: AxisGeneratorKwargs = {},
+        angle_generator_kwargs: AngleGeneratorKwargs = {},
+    ) -> Quat:
     """
     Generate a random quaternion. With all defaults, the quaternion
     will be both random angle and random axis.
@@ -64,7 +79,7 @@ def rand(
     if axis is None:
         axis  = axis_generator(**axis_generator_kwargs)
     if angle is None:
-        angle = angle_generator()
-    return pq.Quat.from_angle_axis(angle, *axis)
+        angle = angle_generator(**angle_generator_kwargs)
+    return Quat.from_angle_axis(angle, *axis)
 
 
