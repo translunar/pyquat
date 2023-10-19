@@ -10,8 +10,8 @@ import os
 import numpy
 
 MAJOR = 0
-MINOR = 4
-TINY  = 0
+MINOR = 5
+TINY  = 1
 version='%d.%d.%d' % (MAJOR, MINOR, TINY)
 
 c_quat = Extension('_pyquat',
