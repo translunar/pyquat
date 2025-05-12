@@ -3,7 +3,7 @@
 pyquat is a Python C extension providing quaternions and functions relating to simulation of attitudes and rotations.
 This might be useful for video games, spacecraft simulators, and sensors such as LIDARs and star trackers which provide
 attitude information. You can use them in place of rotation matrices. Unit quaternions represent attitude as half of the
-surface of a unit sphere in four dimensions (SO4).
+surface of a unit sphere in four dimensions (SO3).
 
 [![Build Status](https://travis-ci.org/translunar/pyquat.svg?branch=master)](https://travis-ci.org/translunar/pyquat)
 
